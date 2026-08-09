@@ -1,0 +1,1159 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// SP Builders — Prisma schema
+// Enterprise real estate platform: projects, interactive plots, bookings, CRM.
+// PostgreSQL. See docs/DATABASE_DESIGN.md for rationale & ER overview.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgcrypto, citext, postgis]
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ENUMS
+// ═════════════════════════════════════════════════════════════════════════════
+
+enum UserRole {
+  SUPER_ADMIN
+  SALES_MANAGER
+  EXECUTIVE
+  EDITOR
+  VIEWER
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum ProjectType {
+  RESIDENTIAL
+  COMMERCIAL
+  PLOTTED
+  VILLA
+  MIXED_USE
+}
+
+enum ProjectStatus {
+  DRAFT
+  UPCOMING
+  ONGOING
+  READY_TO_MOVE
+  COMPLETED
+  SOLD_OUT
+  ARCHIVED
+}
+
+enum ReraStatus {
+  NOT_APPLICABLE
+  APPLIED
+  APPROVED
+  REJECTED
+}
+
+/// Live availability of a plot. Colors are enforced in the app layer:
+/// AVAILABLE=green, BOOKED=blue, RESERVED=yellow, SOLD=red, BLOCKED=gray.
+enum PlotStatus {
+  AVAILABLE
+  RESERVED
+  BOOKED
+  SOLD
+  BLOCKED
+}
+
+enum PlotFacing {
+  NORTH
+  SOUTH
+  EAST
+  WEST
+  NORTH_EAST
+  NORTH_WEST
+  SOUTH_EAST
+  SOUTH_WEST
+}
+
+enum PlotShape {
+  RECTANGLE
+  SQUARE
+  IRREGULAR
+  CORNER
+  CUL_DE_SAC
+}
+
+enum AreaUnit {
+  SQ_FT
+  SQ_YARD
+  SQ_METER
+  ACRE
+  HECTARE
+  MARLA
+  KANAL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DRONE_VIDEO
+  DOCUMENT
+  MASTER_PLAN
+  FLOOR_PLAN
+  BROCHURE
+  PRICE_LIST
+}
+
+enum NearbyCategory {
+  SCHOOL
+  HOSPITAL
+  METRO
+  BUS_STATION
+  RAILWAY
+  AIRPORT
+  MALL
+  RESTAURANT
+  BANK
+  PARK
+  IT_PARK
+  OTHER
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  PHONE
+  EMAIL
+  FACEBOOK
+  GOOGLE_ADS
+  REFERRAL
+  WALK_IN
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SITE_VISIT_SCHEDULED
+  SITE_VISIT_DONE
+  NEGOTIATION
+  WON
+  LOST
+  DUPLICATE
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum BookingStatus {
+  DRAFT
+  RESERVED
+  CONFIRMED
+  AGREEMENT_SIGNED
+  REGISTERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CHEQUE
+  BANK_TRANSFER
+  UPI
+  CARD
+  NET_BANKING
+  LOAN_DISBURSEMENT
+}
+
+enum InstallmentStatus {
+  UPCOMING
+  DUE
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SiteVisitStatus {
+  REQUESTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  AUTH / RBAC / USERS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique @db.Citext
+  phone        String?      @unique
+  passwordHash String? // null for pure OAuth accounts
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  role         UserRole     @default(VIEWER)
+  status       UserStatus   @default(ACTIVE)
+  authProvider AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  lastLoginAt  DateTime?
+  emailVerifiedAt DateTime?
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+
+  // Domain relations (staff-facing)
+  managedProjects  Project[]      @relation("ProjectManager")
+  createdProjects  Project[]      @relation("ProjectCreator")
+  assignedLeads    Lead[]         @relation("LeadAssignee")
+  leadActivities   LeadActivity[]
+  handledBookings  Booking[]      @relation("BookingAgent")
+  uploadedMedia    MediaAsset[]
+  authoredPosts    BlogPost[]
+  assignedTickets  SupportTicket[] @relation("TicketAssignee")
+
+  // Customer portal (1:1 when role = CUSTOMER)
+  customer Customer?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([role, status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique // sha256 of the raw token
+  family     String // rotation family for reuse detection
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([family])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  PROJECTS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Project {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  name          String
+  tagline       String?
+  description   String?       @db.Text
+  type          ProjectType
+  status        ProjectStatus @default(DRAFT)
+
+  // Commercials
+  priceStartFrom Decimal? @db.Decimal(14, 2)
+  priceEndAt     Decimal? @db.Decimal(14, 2)
+  currency       String   @default("INR")
+  areaUnit       AreaUnit @default(SQ_FT)
+
+  // Inventory rollups (denormalized, refreshed on plot mutations for fast cards)
+  totalPlots     Int @default(0)
+  availablePlots Int @default(0)
+  soldPlots      Int @default(0)
+  reservedPlots  Int @default(0)
+  bookedPlots    Int @default(0)
+  blockedPlots   Int @default(0)
+
+  // Location
+  addressLine  String?
+  city         String
+  state        String
+  country      String   @default("India")
+  pincode      String?
+  latitude     Float?
+  longitude    Float?
+  // PostGIS geometry for radius/containment queries (managed via raw SQL migration)
+  // geom      Unsupported("geometry(Point, 4326)")?
+
+  // RERA / legal
+  reraStatus ReraStatus @default(NOT_APPLICABLE)
+  reraNumber String?
+  possessionDate DateTime?
+  launchDate     DateTime?
+
+  // Flags for merchandising the homepage
+  isFeatured   Boolean @default(false)
+  isInvestment Boolean @default(false)
+  isPublished  Boolean @default(false)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImageUrl      String?
+  canonicalUrl    String?
+
+  // Ownership
+  createdById String?
+  createdBy   User?   @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  managerId   String?
+  manager     User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  // Relations
+  layouts         Layout[]
+  plots           Plot[]
+  media           ProjectMedia[]
+  amenities       ProjectAmenity[]
+  nearbyPlaces    NearbyPlace[]
+  specifications  Specification[]
+  downloads       ProjectDownload[]
+  bookings        Booking[]
+  leads           Lead[]
+  siteVisits      SiteVisit[]
+  enquiries       Enquiry[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([type, status])
+  @@index([isPublished, isFeatured])
+  @@index([city, state])
+  @@index([slug])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+model ProjectMedia {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      MediaType
+  url       String
+  thumbnailUrl String?
+  title     String?
+  caption   String?
+  sortOrder Int       @default(0)
+  isCover   Boolean   @default(false)
+  width     Int?
+  height    Int?
+  createdAt DateTime  @default(now())
+
+  @@index([projectId, type])
+  @@index([projectId, sortOrder])
+  @@map("project_media")
+}
+
+model Amenity {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  icon     String? // icon key/name
+  category String?
+  projects ProjectAmenity[]
+
+  @@map("amenities")
+}
+
+model ProjectAmenity {
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amenityId String
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  highlight Boolean @default(false)
+
+  @@id([projectId, amenityId])
+  @@index([amenityId])
+  @@map("project_amenities")
+}
+
+model NearbyPlace {
+  id         String         @id @default(cuid())
+  projectId  String
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category   NearbyCategory
+  name       String
+  distanceKm Float?
+  driveTime  String? // "5 min"
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime       @default(now())
+
+  @@index([projectId, category])
+  @@map("nearby_places")
+}
+
+model Specification {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  group     String // e.g. "Structure", "Flooring", "Electrical"
+  key       String
+  value     String
+  sortOrder Int      @default(0)
+
+  @@index([projectId, group])
+  @@map("specifications")
+}
+
+model ProjectDownload {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      MediaType // BROCHURE | PRICE_LIST | DOCUMENT
+  title     String
+  url       String
+  fileSize  Int?
+  requiresLead Boolean @default(false) // gate download behind an enquiry form
+  downloadCount Int    @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([projectId, type])
+  @@map("project_downloads")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  LAYOUTS & INTERACTIVE PLOTS  (flagship module)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// A master layout image for a project + the editor canvas metadata.
+/// A project can have multiple layouts (phases / sectors).
+model Layout {
+  id          String  @id @default(cuid())
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String  @default("Master Layout")
+  phase       String?
+
+  // Background master image (SVG / PNG / high-res). Stored in S3.
+  imageUrl    String?
+  imageType   MediaType @default(MASTER_PLAN)
+  imageWidth  Int?
+  imageHeight Int?
+
+  // Canvas / viewport config for the editor & public viewer.
+  // Coordinate space is the natural pixel space of imageWidth×imageHeight.
+  canvasWidth  Int   @default(1920)
+  canvasHeight Int   @default(1080)
+  defaultZoom  Float @default(1)
+  minZoom      Float @default(0.2)
+  maxZoom      Float @default(8)
+  gridSize     Int   @default(20)
+  snapEnabled  Boolean @default(true)
+
+  // Georeferencing (optional): map layout pixel space to WGS84 for the live map.
+  geoReference Json? // affine transform / control points
+
+  isPublished Boolean @default(false)
+  version     Int     @default(1) // bumped on structural saves for optimistic concurrency
+
+  plots     Plot[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([projectId])
+  @@map("layouts")
+}
+
+/// One plot = one polygon on a layout = one sellable unit.
+model Plot {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  layoutId  String?
+  layout    Layout? @relation(fields: [layoutId], references: [id], onDelete: SetNull)
+
+  // Identity
+  plotNumber String
+  block      String?
+  sector     String?
+  phase      String?
+
+  // Physical attributes
+  area       Decimal    @db.Decimal(12, 2)
+  areaUnit   AreaUnit   @default(SQ_FT)
+  dimensions String? // "30x40"
+  lengthFt   Float?
+  widthFt    Float?
+  facing     PlotFacing?
+  shape      PlotShape   @default(RECTANGLE)
+  roadWidthFt Float?
+  isCorner   Boolean     @default(false)
+
+  // Commercials
+  basePrice     Decimal  @db.Decimal(14, 2)
+  pricePerUnit  Decimal? @db.Decimal(14, 2) // per sq ft/yard
+  plcCharges    Decimal? @db.Decimal(14, 2) // Preferential Location Charge
+  plcType       String? // "corner", "park-facing", "road-facing"
+  totalPrice    Decimal? @db.Decimal(14, 2) // computed: base + plc
+  currency      String   @default("INR")
+
+  // Live status
+  status        PlotStatus @default(AVAILABLE)
+  colorOverride String? // optional hex override; else derived from status
+  isFeatured    Boolean    @default(false)
+
+  // Geometry — editor polygon in layout pixel space.
+  // Array of {x,y} vertices. Rendered by the canvas engine.
+  polygon    Json // [{ "x": 100, "y": 220 }, ...]
+  centroidX  Float?
+  centroidY  Float?
+  rotation   Float @default(0)
+  zIndex     Int   @default(0)
+
+  // Optional real-world GPS polygon for the live availability map.
+  gpsPolygon Json? // GeoJSON-ish [[lng,lat], ...]
+
+  // Ownership / booking snapshot (authoritative record lives in Booking)
+  ownerName     String?
+  remarks       String?  @db.Text
+  bookingAmount Decimal? @db.Decimal(14, 2)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // Relations
+  booking        Booking?
+  statusHistory  PlotStatusHistory[]
+  priceHistory   PlotPriceHistory[]
+  documents      Document[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([projectId, plotNumber])
+  @@index([projectId, status])
+  @@index([layoutId])
+  @@index([status])
+  @@index([facing])
+  @@index([isCorner])
+  @@index([area])
+  @@index([basePrice])
+  @@index([deletedAt])
+  @@map("plots")
+}
+
+model PlotStatusHistory {
+  id         String     @id @default(cuid())
+  plotId     String
+  plot       Plot       @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  fromStatus PlotStatus?
+  toStatus   PlotStatus
+  changedById String?
+  reason     String?
+  createdAt  DateTime   @default(now())
+
+  @@index([plotId, createdAt])
+  @@map("plot_status_history")
+}
+
+model PlotPriceHistory {
+  id         String   @id @default(cuid())
+  plotId     String
+  plot       Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  oldPrice   Decimal? @db.Decimal(14, 2)
+  newPrice   Decimal  @db.Decimal(14, 2)
+  changedById String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([plotId, createdAt])
+  @@map("plot_price_history")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  CUSTOMERS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Customer {
+  id        String  @id @default(cuid())
+  // Portal login link (nullable: a customer record may exist before portal invite)
+  userId    String? @unique
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  firstName String
+  lastName  String
+  email     String? @db.Citext
+  phone     String
+  altPhone  String?
+
+  // KYC
+  panNumber     String?
+  aadhaarNumber String?
+  addressLine   String?
+  city          String?
+  state         String?
+  pincode       String?
+
+  bookings      Booking[]
+  leads         Lead[]
+  documents     Document[]
+  supportTickets SupportTicket[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([phone])
+  @@index([email])
+  @@map("customers")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  BOOKINGS / PAYMENTS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingNumber String        @unique // human code e.g. SPB-2026-000123
+  projectId     String
+  project       Project       @relation(fields: [projectId], references: [id])
+  plotId        String        @unique // one active booking per plot
+  plot          Plot          @relation(fields: [plotId], references: [id])
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  agentId       String?
+  agent         User?         @relation("BookingAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  leadId        String?
+  lead          Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  status        BookingStatus @default(RESERVED)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // Money
+  salePrice     Decimal @db.Decimal(14, 2)
+  bookingAmount Decimal @db.Decimal(14, 2)
+  discount      Decimal @default(0) @db.Decimal(14, 2)
+  totalPaid     Decimal @default(0) @db.Decimal(14, 2)
+  balanceDue    Decimal @default(0) @db.Decimal(14, 2)
+  currency      String  @default("INR")
+
+  reservedAt    DateTime  @default(now())
+  reservedUntil DateTime? // auto-release window for RESERVED
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  cancelReason  String?
+
+  payments     Payment[]
+  installments Installment[]
+  agreements   Agreement[]
+  documents    Document[]
+  receipts     Receipt[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([projectId, status])
+  @@index([customerId])
+  @@index([agentId])
+  @@index([status, paymentStatus])
+  @@map("bookings")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  bookingId     String
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  installmentId String?       @unique
+  installment   Installment?  @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  status        PaymentStatus @default(PAID)
+  reference     String? // txn id / cheque no / UTR
+  paidAt        DateTime      @default(now())
+  note          String?
+
+  receipt   Receipt?
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+model Installment {
+  id        String            @id @default(cuid())
+  bookingId String
+  booking   Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sequence  Int
+  label     String? // "Milestone 1 — Foundation"
+  dueDate   DateTime
+  amount    Decimal           @db.Decimal(14, 2)
+  paidAmount Decimal          @default(0) @db.Decimal(14, 2)
+  status    InstallmentStatus @default(UPCOMING)
+
+  payment   Payment?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookingId, sequence])
+  @@index([status, dueDate])
+  @@map("installments")
+}
+
+model Agreement {
+  id         String   @id @default(cuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  title      String
+  url        String // signed PDF in S3
+  version    Int      @default(1)
+  signedAt   DateTime?
+  signedByIp String?
+  createdAt  DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("agreements")
+}
+
+model Receipt {
+  id            String   @id @default(cuid())
+  receiptNumber String   @unique
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  paymentId     String?  @unique
+  payment       Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  amount        Decimal  @db.Decimal(14, 2)
+  url           String? // generated PDF
+  createdAt     DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("receipts")
+}
+
+/// Generic document attachment (KYC, agreements, plot papers, booking docs).
+model Document {
+  id         String    @id @default(cuid())
+  title      String
+  type       MediaType @default(DOCUMENT)
+  url        String
+  fileSize   Int?
+  mimeType   String?
+
+  // Optional polymorphic-ish owners (only one set)
+  plotId     String?
+  plot       Plot?     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  bookingId  String?
+  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([plotId])
+  @@index([bookingId])
+  @@index([customerId])
+  @@map("documents")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  LEADS / CRM
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Lead {
+  id         String       @id @default(cuid())
+  name       String
+  email      String?      @db.Citext
+  phone      String
+  source     LeadSource   @default(WEBSITE)
+  status     LeadStatus   @default(NEW)
+  priority   LeadPriority @default(MEDIUM)
+
+  budgetMin  Decimal? @db.Decimal(14, 2)
+  budgetMax  Decimal? @db.Decimal(14, 2)
+  message    String?  @db.Text
+
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  assigneeId String?
+  assignee   User?     @relation("LeadAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  // Marketing attribution
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
+  lastContactedAt DateTime?
+  nextFollowUpAt  DateTime?
+  lostReason      String?
+
+  activities LeadActivity[]
+  bookings   Booking[]
+  siteVisits SiteVisit[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status, priority])
+  @@index([assigneeId, status])
+  @@index([source])
+  @@index([nextFollowUpAt])
+  @@index([phone])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type      String // "note" | "call" | "email" | "whatsapp" | "status_change" | "meeting"
+  title     String?
+  body      String?  @db.Text
+  metadata  Json? // e.g. { from: "NEW", to: "CONTACTED" }
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@map("lead_activities")
+}
+
+model SiteVisit {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  leadId      String?
+  lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  name        String
+  phone       String
+  email       String?
+  scheduledAt DateTime
+  status      SiteVisitStatus @default(REQUESTED)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([projectId, status])
+  @@index([scheduledAt])
+  @@map("site_visits")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  MEDIA LIBRARY
+// ═════════════════════════════════════════════════════════════════════════════
+
+model MediaFolder {
+  id       String        @id @default(cuid())
+  name     String
+  parentId String?
+  parent   MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children MediaFolder[] @relation("FolderTree")
+  assets   MediaAsset[]
+  createdAt DateTime     @default(now())
+
+  @@index([parentId])
+  @@map("media_folders")
+}
+
+model MediaAsset {
+  id         String       @id @default(cuid())
+  folderId   String?
+  folder     MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  type       MediaType
+  url        String
+  thumbnailUrl String?
+  fileName   String
+  mimeType   String?
+  fileSize   Int?
+  width      Int?
+  height     Int?
+  duration   Int? // seconds, for video
+  alt        String?
+  tags       String[]
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([folderId])
+  @@index([type])
+  @@map("media_assets")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String?
+  user      User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel @default(IN_APP)
+  status    NotificationStatus  @default(QUEUED)
+  title     String
+  body      String?             @db.Text
+  data      Json? // deep-link payload { type, entityId, url }
+  readAt    DateTime?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, readAt])
+  @@index([channel, status])
+  @@map("notifications")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  CONTENT (blog, testimonials, faq, partners, contact)
+// ═════════════════════════════════════════════════════════════════════════════
+
+model BlogCategory {
+  id    String     @id @default(cuid())
+  slug  String     @unique
+  name  String
+  posts BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  excerpt     String?
+  content     String       @db.Text
+  coverImage  String?
+  status      BlogStatus   @default(DRAFT)
+  categoryId  String?
+  category    BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId    String?
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags        String[]
+  readMinutes Int?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImageUrl      String?
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@map("blog_posts")
+}
+
+model Testimonial {
+  id         String  @id @default(cuid())
+  name       String
+  role       String?
+  company    String?
+  avatarUrl  String?
+  quote      String  @db.Text
+  rating     Int     @default(5)
+  isFeatured Boolean @default(false)
+  sortOrder  Int     @default(0)
+  createdAt  DateTime @default(now())
+
+  @@map("testimonials")
+}
+
+model Faq {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String  @db.Text
+  category  String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  @@index([category, sortOrder])
+  @@map("faqs")
+}
+
+model BuilderPartner {
+  id        String  @id @default(cuid())
+  name      String
+  logoUrl   String
+  website   String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  @@map("builder_partners")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+  @@map("contact_messages")
+}
+
+/// Website enquiry / "Book Now" on a project or plot — feeds the CRM as a Lead.
+model Enquiry {
+  id        String   @id @default(cuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  plotId    String? // soft ref; plot may be deleted
+  name      String
+  email     String?
+  phone     String
+  message   String?
+  source    LeadSource @default(WEBSITE)
+  createdAt DateTime   @default(now())
+
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("enquiries")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  SUPPORT (customer portal tickets)
+// ═════════════════════════════════════════════════════════════════════════════
+
+model SupportTicket {
+  id          String         @id @default(cuid())
+  ticketNumber String        @unique
+  customerId  String
+  customer    Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  subject     String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  messages    TicketMessage[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([customerId, status])
+  @@index([assigneeId, status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorType String // "customer" | "staff"
+  authorId   String?
+  body       String   @db.Text
+  attachments String[]
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  AUDIT / ACTIVITY LOGS
+// ═════════════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String // "plot.status.update", "booking.create", ...
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  method    String
+  path      String
+  statusCode Int?
+  durationMs Int?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("activity_logs")
+}

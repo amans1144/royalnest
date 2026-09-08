@@ -25,7 +25,7 @@ const playfair = Playfair_Display({
 
 const TITLE = 'Liberty Imperial Greens — Vacation-Themed Township, Gosaiganj, Lucknow';
 const DESCRIPTION =
-  'Liberty Imperial Greens, Nizampur, Gosaiganj–Satrikh Road, Lucknow. Pre-RERA launch at ₹1,799/sq.ft. — 50 ft. roads, 10 theme gardens, Club Imperial and a 40,000+ sq.ft. sports zone on NH-731.';
+  'Liberty Imperial Greens, Nizampur, Gosaiganj–Satrikh Road, Lucknow. A pre-RERA launch township — 50 ft. roads, 10 theme gardens, Club Imperial and a 40,000+ sq.ft. sports zone on NH-731.';
 
 export const metadata: Metadata = {
   // Resolves every relative URL below (OG images, canonicals) to an absolute one.
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     siteName: 'Liberty Imperial Greens',
     title: 'Liberty Imperial Greens — A Vacation-Themed Township in Lucknow',
     description:
-      'Pre-RERA launch at ₹1,799/sq.ft. + AC. Nizampur, Gosaiganj–Satrikh Road on Lucknow–Sultanpur NH-731.',
+      'A pre-RERA launch township at Nizampur, Gosaiganj–Satrikh Road on Lucknow–Sultanpur NH-731.',
     images: [
       {
         url: OG_IMAGE,
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Liberty Imperial Greens — A Vacation-Themed Township in Lucknow',
     description:
-      'Pre-RERA launch at ₹1,799/sq.ft. + AC. Nizampur, Gosaiganj–Satrikh Road, Lucknow.',
+      'A pre-RERA launch township at Nizampur, Gosaiganj–Satrikh Road, Lucknow.',
     images: [OG_IMAGE],
   },
   robots: {
@@ -93,7 +93,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fdfcf7' },
+    // Matches --background in each scheme, so the mobile browser chrome blends
+    // into the page instead of banding against it.
+    { media: '(prefers-color-scheme: light)', color: '#f3f9f0' },
     { media: '(prefers-color-scheme: dark)', color: '#141d2b' },
   ],
 };

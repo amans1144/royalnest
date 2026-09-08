@@ -7,7 +7,7 @@ import { MarketingBrowser } from '../../components/marketing-browser';
 import { BRAND, PROJECT } from '../../lib/site-data';
 import { OG_IMAGE, breadcrumbJsonLd, jsonLdScript } from '../../lib/seo';
 
-const DESCRIPTION = `Download brochures, price lists, site plans and walkthrough videos for ${PROJECT.name}, ${PROJECT.locality}, ${PROJECT.city}.`;
+const DESCRIPTION = `Download brochures, site plans and walkthrough videos for ${PROJECT.name}, ${PROJECT.locality}, ${PROJECT.city}.`;
 
 export const metadata: Metadata = {
   title: 'Marketing Material',
@@ -71,8 +71,8 @@ export default function MarketingPage() {
               Brochures, plans &amp; videos
             </h1>
             <p className="mt-4 max-w-2xl text-lg text-white/70">
-              Everything you need to evaluate {PROJECT.name} — download the brochure and price
-              list, study the site plan, or watch the township walkthrough.
+              Everything you need to evaluate {PROJECT.name} — download the brochure, study
+              the site plan, or watch the township walkthrough.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">

@@ -8,6 +8,7 @@ import { Gallery } from '../components/gallery';
 import { Contact } from '../components/contact';
 import { Footer } from '../components/footer';
 import { FloatingActions } from '../components/floating-actions';
+import { LandscapeBand } from '../components/parallax';
 
 export default function HomePage() {
   return (
@@ -17,8 +18,10 @@ export default function HomePage() {
         <Hero />
         <WhyInvest />
         <Amenities />
+        <LandscapeBand />
         <PlotMap />
         <Locations />
+        <LandscapeBand />
         <Gallery />
         <Contact />
       </main>

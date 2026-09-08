@@ -8,7 +8,7 @@ export function StatsBand() {
   return (
     <section className="relative overflow-hidden bg-neutral-950 py-20 text-white">
       <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
       <div className="container-x relative">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((s, i) => (

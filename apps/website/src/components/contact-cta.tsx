@@ -12,12 +12,12 @@ export function ContactCta() {
       <div className="container-x">
         <div className="relative overflow-hidden rounded-[2rem] bg-neutral-950 px-6 py-16 text-white sm:px-14">
           <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-primary/30 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
 
           <div className="relative grid gap-10 lg:grid-cols-2 lg:items-center">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm">
-                <Sparkle width={16} height={16} className="text-amber-300" /> Book a private tour
+                <Sparkle width={16} height={16} className="text-primary" /> Book a private tour
               </span>
               <h2 className="mt-6 font-display text-4xl font-semibold leading-tight sm:text-5xl">
                 Let’s find your next address.

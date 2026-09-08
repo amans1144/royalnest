@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { SectionHeading } from './section-heading';
+import { ParallaxScene, TownshipScene } from './parallax';
 import { AnimatedCounter } from './animated-counter';
 import { Icon } from './icon-map';
 import { Check, MapPin } from './icons';
@@ -9,13 +10,27 @@ import { LOCATION_GROUPS, LOCATION_NOTE, LOCATION_STATS, PROJECT } from '../lib/
 
 export function Locations() {
   return (
-    <section id="location" className="bg-gradient-to-b from-secondary via-background to-secondary py-24">
-      <div className="container-x">
+    <ParallaxScene
+      id="location"
+      className="bg-gradient-to-b from-[hsl(var(--cream))] via-background to-[hsl(var(--secondary))] py-24"
+    >
+      {/* The corridor itself: horizon, treeline and township drifting behind
+          the connectivity copy. Map-inspired hairlines sit above them. */}
+      <TownshipScene tone="light" intensity={0.7} />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            'linear-gradient(hsl(var(--forest)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--forest)) 1px, transparent 1px)',
+          backgroundSize: '88px 88px',
+        }}
+      />
+      <div className="container-x relative">
         <SectionHeading
           center
           eyebrow="Location"
-          title="At the Centre of Lucknow's Next Chapter"
-          subtitle="Nizampur, Gosaiganj – Satrikh Road, on the Lucknow–Sultanpur NH-731 corridor, ringed by planned government townships."
+          title="At the Centre of Lucknow’s Next Chapter"
+          subtitle="Nizampur, Gosaiganj–Satrikh Road, on the Lucknow–Sultanpur NH-731 corridor, ringed by planned government townships."
         />
 
         {/* ── Address + drive-time stats ── */}
@@ -112,6 +127,6 @@ export function Locations() {
           {LOCATION_NOTE}
         </motion.p>
       </div>
-    </section>
+    </ParallaxScene>
   );
 }

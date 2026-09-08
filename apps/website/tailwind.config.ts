@@ -48,10 +48,30 @@ const config: Config = {
           foreground: 'hsl(var(--navy-foreground))',
         },
         gold: 'hsl(var(--gold))',
+        /* Brand scale — use these for deliberate botanical accents. */
+        forest: {
+          DEFAULT: 'hsl(var(--forest))',
+          deep: 'hsl(var(--forest-deep))',
+        },
+        emerald2: 'hsl(var(--emerald))',
+        leaf: 'hsl(var(--leaf))',
+        sage: 'hsl(var(--sage))',
+        cream: 'hsl(var(--cream))',
+        ivory: 'hsl(var(--ivory))',
+        sand: 'hsl(var(--sand))',
       },
       borderRadius: {
         '2xl': '1.25rem',
         '3xl': '1.75rem',
+      },
+      boxShadow: {
+        soft: 'var(--shadow-sm)',
+        elevated: 'var(--shadow-md)',
+        premium: 'var(--shadow-lg)',
+        cinematic: 'var(--shadow-xl)',
+      },
+      transitionTimingFunction: {
+        'out-soft': 'var(--ease-out-soft)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

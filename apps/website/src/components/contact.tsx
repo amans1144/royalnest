@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@spb/ui';
 import { SectionHeading } from './section-heading';
+import { ParallaxScene, HorizonScene } from './parallax';
 import { MapPin, Phone, Mail, Clock, Check, WhatsApp } from './icons';
 import { BRAND, INTEREST_OPTIONS } from '../lib/site-data';
 
@@ -14,20 +15,28 @@ const details = [
   { icon: Clock, label: 'Hours', value: BRAND.hours },
 ];
 
+/* Spacious, quiet fields with an unmistakable green focus state (§14). */
 const inputCls =
-  'w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
+  'w-full rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none transition-all duration-200 ' +
+  'placeholder:text-muted-foreground/70 hover:border-primary/35 ' +
+  'focus:border-primary focus:ring-4 focus:ring-primary/12';
 
 export function Contact() {
   const [submitted, setSubmitted] = useState(false);
 
   return (
-    <section id="contact" className="bg-gradient-to-b from-accent/50 via-background to-accent/40 py-24">
-      <div className="container-x">
+    <ParallaxScene
+      id="contact"
+      className="bg-gradient-to-b from-[hsl(var(--cream))] via-background to-[hsl(var(--cream))] py-24"
+    >
+      {/* A quiet garden edge under the form — warmth without distraction. */}
+      <HorizonScene tone="light" />
+      <div className="container-x relative">
         <SectionHeading
           center
           eyebrow="Contact"
           title="Book Your Site Visit"
-          subtitle="Get the price list and live plot availability for Liberty Imperial Greens — our advisors respond within one business day."
+          subtitle="Get complete project details and current availability for Liberty Imperial Greens — our advisors respond within one business day."
         />
 
         <div className="mt-14 grid gap-8 lg:grid-cols-[1fr_1.2fr]">
@@ -103,7 +112,7 @@ export function Contact() {
                 <input type="email" placeholder="Email address" className={inputCls} />
                 <select required defaultValue="" className={inputCls}>
                   <option value="" disabled>
-                    I'm interested in...
+                    I’m interested in…
                   </option>
                   {INTEREST_OPTIONS.map((o) => (
                     <option key={o}>{o}</option>
@@ -118,6 +127,6 @@ export function Contact() {
           </motion.div>
         </div>
       </div>
-    </section>
+    </ParallaxScene>
   );
 }

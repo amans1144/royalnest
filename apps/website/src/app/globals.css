@@ -8,54 +8,182 @@
       sans-serif;
     --font-display: var(--font-playfair), 'Times New Roman', Georgia, serif;
 
-    /* RoyalNest — gold + navy luxury palette, tuned light and bright */
-    --background: 42 52% 99%; /* warm near-white */
-    --foreground: 220 40% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 40% 12%;
-    --primary: 40 74% 50%; /* royal gold, brighter */
-    --primary-foreground: 220 45% 12%;
-    --secondary: 202 68% 97%; /* airy sky wash */
-    --secondary-foreground: 220 40% 14%;
-    --accent: 40 70% 94%;
-    --accent-foreground: 220 40% 14%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --muted: 168 44% 96%; /* soft mint wash */
-    --muted-foreground: 220 12% 42%;
-    --border: 214 30% 90%;
-    --input: 214 30% 90%;
-    --ring: 40 74% 50%;
+    /* ══════════════════════════════════════════════════════════════════════
+       Liberty Imperial Greens — "premium green township" palette.
 
-    /* Brand navy — lifted from near-black so dark bands read rich, not heavy.
-       At 27% lightness white text still clears 10:1 contrast. */
-    --navy: 217 42% 27%;
-    --navy-foreground: 42 40% 97%;
-    --gold: 40 74% 50%;
+       Light mode is the hero experience: airy ivory and soft green-white
+       grounds, deep forest for weight, leaf green as the single accent.
+       Green is an identity colour here, not a wash — most of the page stays
+       cream and white so the greenery reads as deliberate.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /* ── Brand scale (raw tokens; compose the semantic ones below) ──
+       Every light ground is green-tinted. The section grounds used to mix a
+       warm cream (45°) with a green-white, which read as "off-white" rather
+       than green; they are all on the same green hue family now so the page
+       reads as a light green environment top to bottom. */
+    --forest: 154 44% 30%; /* lifted forest — green, not near-black */
+    --forest-deep: 156 46% 20%; /* deepest tone used in light mode */
+    --emerald: 148 48% 44%; /* brighter natural green */
+    --leaf: 100 52% 60%; /* fresh, sunlit leaf */
+    --sage: 104 34% 80%; /* soft foliage for dividers + strokes */
+    --cream: 94 42% 93%; /* #ECF5E6 light green section (was warm cream) */
+    --ivory: 92 46% 97%; /* #F7FBF4 card ground */
+    --sand: 95 26% 87%; /* leaf-tinted hairline */
+
+    /* ── Semantic tokens ──
+       Ink is deliberately dark: the previous --muted-foreground (144 7% 42%)
+       carried most of the body copy on this site and only cleared 4.5:1 on the
+       lightest ground — it failed outright on the mint section. Both ink tokens
+       are darker and greener now, so every ground/ink pair below clears AA and
+       most clear AAA. See the ratio table in the commit notes. */
+    --background: 104 44% 96%; /* #F3F9F0 light green */
+    --foreground: 156 40% 8%; /* #0C1D16 deep forest ink */
+    --card: 100 40% 99%; /* near-white, a touch green, lifts off the ground */
+    --card-foreground: 156 40% 8%;
+
+    /* Primary is the interactive/accent green. It carries small uppercase
+       eyebrows and link text, so it is tuned to clear AA on every light ground
+       (6.3:1 on card, 5.4:1 on the mint section) — the old 150 52% 34% managed
+       only 4.15–4.64 and failed on three of them.
+       Dark bands re-scope it to a lighter leaf — see .on-forest below. */
+    --primary: 152 58% 27%;
+    --primary-foreground: 96 50% 98%;
+
+    --secondary: 102 46% 90%; /* #E1F1DA fresh mint section */
+    --secondary-foreground: 156 40% 10%;
+    --accent: 100 44% 92%; /* green wash (was warm cream) */
+    --accent-foreground: 156 40% 10%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --muted: 102 40% 92%;
+    --muted-foreground: 154 22% 28%; /* #385749 — 7.5:1 on the page ground */
+    --border: 102 28% 82%;
+    --input: 102 28% 78%;
+    --ring: 152 58% 27%;
+
+    /* `navy` is kept as the token NAME so every component that already paints
+       a dark band keeps working — it is now deep forest green, not navy. */
+    --navy: 157 42% 26%;
+    --navy-foreground: 48 55% 98%;
+    --band-1: 156 40% 25%;
+    --band-2: 150 36% 31%;
+    --band-3: 146 34% 27%;
+    --gold: 100 52% 60%; /* legacy name, now leaf green */
+
+    /* ── Elevation: green-tinted so shadows sit in the palette ── */
+    --shadow-sm: 0 1px 2px hsl(156 30% 12% / 0.05);
+    --shadow-md: 0 4px 16px -4px hsl(156 30% 12% / 0.1);
+    --shadow-lg: 0 16px 40px -12px hsl(156 30% 12% / 0.16);
+    --shadow-xl: 0 28px 70px -20px hsl(156 35% 10% / 0.24);
+
+    /* ── Motion ── */
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-fast: 220ms;
+    --dur-mid: 480ms;
+    --dur-slow: 800ms;
   }
 
   .dark {
-    --background: 218 38% 12%;
-    --foreground: 40 25% 95%;
-    --card: 218 34% 16%;
-    --card-foreground: 40 25% 95%;
-    --primary: 42 80% 60%;
-    --primary-foreground: 220 45% 9%;
-    --secondary: 218 28% 20%;
-    --secondary-foreground: 40 25% 95%;
-    --accent: 218 28% 23%;
-    --accent-foreground: 40 25% 95%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --muted: 218 26% 20%;
-    --muted-foreground: 220 14% 70%;
-    --border: 218 24% 26%;
-    --input: 218 24% 26%;
-    --ring: 42 80% 60%;
+    /* "Luxury eco-resort at night" — deep forest black, never pure #000. */
+    --forest: 156 42% 20%;
+    --forest-deep: 158 45% 5%;
+    --emerald: 150 40% 42%;
+    --leaf: 105 40% 62%;
+    --sage: 120 12% 42%;
+    --cream: 150 22% 7%; /* warm section, night value */
+    --ivory: 152 16% 11%;
+    --sand: 150 14% 16%;
 
-    --navy: 218 36% 17%;
-    --navy-foreground: 40 25% 95%;
-    --gold: 42 80% 60%;
+    --background: 158 34% 5%;
+    --foreground: 60 18% 93%;
+    --card: 158 26% 9%;
+    --card-foreground: 60 18% 93%;
+
+    --primary: 105 40% 62%; /* leaf reads bright against forest black */
+    --primary-foreground: 158 40% 9%;
+
+    --secondary: 158 24% 11%;
+    --secondary-foreground: 60 18% 93%;
+    --accent: 158 22% 13%;
+    --accent-foreground: 60 18% 93%;
+    --destructive: 0 58% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --muted: 158 22% 11%;
+    --muted-foreground: 130 10% 68%;
+    --border: 158 20% 17%;
+    --input: 158 20% 19%;
+    --ring: 105 40% 62%;
+
+    --navy: 158 40% 6%;
+    --navy-foreground: 60 18% 93%;
+    --band-1: 158 50% 5%;
+    --band-2: 156 44% 9%;
+    --band-3: 150 42% 6%;
+    --gold: 105 40% 62%;
+
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 16px -4px hsl(0 0% 0% / 0.45);
+    --shadow-lg: 0 16px 40px -12px hsl(0 0% 0% / 0.55);
+    --shadow-xl: 0 28px 70px -20px hsl(0 0% 0% / 0.65);
+  }
+
+  /**
+   * Dark bands (forest sections, footer, hero panels) re-scope the accent to a
+   * lighter leaf green. Everything inside keeps using `text-primary` and simply
+   * resolves to a shade that actually reads against a dark ground — no
+   * per-component colour overrides needed.
+   */
+  /**
+   * The signature dark band. Light mode paints it a rich mid-forest so the
+   * page reads green and alive; dark mode drops it to near-black forest. White
+   * body copy clears ~7:1 on the light value and ~15:1 on the dark one, so the
+   * same markup works in both without touching a single component.
+   */
+  .band-forest {
+    background-image: linear-gradient(
+      150deg,
+      hsl(var(--band-1)) 0%,
+      hsl(var(--band-2)) 48%,
+      hsl(var(--band-3)) 100%
+    );
+  }
+
+  .on-forest {
+    --primary: 96 58% 70%;
+    --ring: 105 44% 64%;
+    --border: 150 20% 28%;
+    --muted-foreground: 130 12% 72%;
+  }
+
+  /**
+   * The inverse: a light card sitting on a dark band. Restores the light-mode
+   * accent so `text-primary` inside an ivory surface goes back to deep green
+   * instead of inheriting the leaf tone meant for dark grounds.
+   */
+  .on-ivory {
+    /* Must track the :root light values above — this scope exists only to undo
+       .on-forest, so any drift between the two shows up as a card whose body
+       copy is a different grey from every other card on the page. */
+    --primary: 152 58% 27%;
+    --foreground: 156 40% 8%;
+    --muted-foreground: 154 22% 28%;
+    --border: 100 22% 82%;
+    --secondary: 98 42% 92%;
+    --ring: 152 58% 27%;
+  }
+  /**
+   * In dark mode the "ivory" surface is itself dark, so the scope has to flip
+   * with it — otherwise it would paint near-black text onto a near-black card.
+   * The hierarchy is identical, only the polarity changes.
+   */
+  .dark .on-ivory {
+    --primary: 100 46% 66%;
+    --foreground: 60 18% 94%;
+    --muted-foreground: 130 10% 70%;
+    --border: 155 16% 20%;
+    --secondary: 155 16% 15%;
+    --ring: 105 40% 62%;
   }
 
   * {
@@ -69,7 +197,21 @@
     font-family: var(--font-sans);
   }
   ::selection {
-    background: hsl(var(--primary) / 0.28);
+    background: hsl(var(--primary) / 0.24);
+  }
+
+  /* Headings carry the architectural, editorial weight of the brand. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.018em;
+  }
+
+  /* Visible, on-brand focus ring for keyboard users everywhere. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
@@ -77,8 +219,17 @@
   .container-x {
     @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
   }
+
+  /* Legacy class names kept so no component markup has to change — the
+     gradient itself is now leaf → emerald rather than gold. */
   .text-gradient-gold {
-    @apply bg-gradient-to-r from-amber-500 via-primary to-amber-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--leaf)) 0%,
+      hsl(var(--primary)) 55%,
+      hsl(var(--emerald)) 100%
+    );
     /* bg-clip-text clips to the content box, which cuts the descenders of
        Playfair's old-style figures (1, 7, 9) and letters like G. Padding
        extends the painted box so the descenders keep their gradient; the
@@ -89,6 +240,16 @@
     padding-bottom: 0.14em;
     margin-bottom: -0.14em;
   }
+  .gold-divider {
+    @apply mx-auto h-px w-24;
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--primary) / 0.8),
+      transparent
+    );
+  }
+
   .glass {
     @apply border border-white/15 bg-white/10 backdrop-blur-xl;
   }
@@ -96,10 +257,11 @@
     @apply border border-white/10 bg-navy/40 backdrop-blur-xl;
   }
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-primary/10;
+    @apply transition-all duration-300 hover:-translate-y-1.5;
+    transition-timing-function: var(--ease-out-soft);
   }
-  .gold-divider {
-    @apply mx-auto h-px w-24 bg-gradient-to-r from-transparent via-primary to-transparent;
+  .card-hover:hover {
+    box-shadow: var(--shadow-lg);
   }
   .skeleton {
     @apply relative overflow-hidden bg-muted;
@@ -107,6 +269,61 @@
   .skeleton::after {
     content: '';
     @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent;
+  }
+
+  /* ── Premium surface: ivory card with a hairline and soft green shadow ── */
+  .surface {
+    @apply rounded-2xl border border-border bg-card;
+    box-shadow: var(--shadow-sm);
+  }
+  .surface-lift {
+    transition:
+      transform var(--dur-fast) var(--ease-out-soft),
+      box-shadow var(--dur-fast) var(--ease-out-soft),
+      border-color var(--dur-fast) var(--ease-out-soft);
+  }
+  .surface-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: hsl(var(--primary) / 0.35);
+  }
+
+  /* ── Editorial rule used under section eyebrows ── */
+  .rule-leaf {
+    @apply h-px w-full;
+    background-image: linear-gradient(
+      to right,
+      hsl(var(--primary) / 0.45),
+      hsl(var(--sage) / 0.5) 40%,
+      transparent
+    );
+  }
+
+  /* ── Scenery texture ────────────────────────────────────────────────
+     SVG filters give the foliage ragged edges and the walls a fine grain.
+     They rasterise a large region, so they're switched off below `md` and
+     under reduced motion, where the flat fills still read correctly. */
+  .lig-leaf-tex {
+    filter: url(#lig-leaf);
+  }
+  .lig-grain-tex {
+    filter: url(#lig-grain);
+  }
+  @media (max-width: 767px) {
+    .lig-leaf-tex,
+    .lig-grain-tex {
+      filter: none;
+    }
+  }
+
+  /* ── Atmospheric haze that softens the join between stacked scenes ── */
+  .haze-top {
+    @apply pointer-events-none absolute inset-x-0 top-0 h-32;
+    background-image: linear-gradient(to bottom, hsl(var(--background)), transparent);
+  }
+  .haze-bottom {
+    @apply pointer-events-none absolute inset-x-0 bottom-0 h-32;
+    background-image: linear-gradient(to top, hsl(var(--background)), transparent);
   }
 }
 
@@ -118,9 +335,31 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.4);
+  background: hsl(var(--primary) / 0.35);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary) / 0.6);
+  background: hsl(var(--primary) / 0.55);
+}
+
+/**
+ * Reduced motion: parallax, reveals and decorative transitions all collapse to
+ * their end state. The site stays fully legible and functional — it just stops
+ * moving. Parallax layers additionally bail out in JS (see components/parallax).
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-parallax] {
+    transform: none !important;
+  }
 }

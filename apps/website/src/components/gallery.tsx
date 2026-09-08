@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@spb/ui';
 import { GALLERY_CATEGORIES } from '@spb/types';
 import { SectionHeading } from './section-heading';
+import { ParallaxScene, HorizonScene } from './parallax';
 import { ArrowRight } from './icons';
 import { useGallery } from '../lib/use-gallery';
 
@@ -15,8 +16,9 @@ export function Gallery() {
   const categories = new Set(images.map((g) => g.category));
 
   return (
-    <section id="gallery" className="relative bg-background py-24">
-      <div className="container-x">
+    <ParallaxScene id="gallery" className="bg-gradient-to-b from-background via-[hsl(var(--cream))] to-background py-24">
+      <HorizonScene tone="light" />
+      <div className="container-x relative">
         <SectionHeading
           center
           eyebrow="Gallery"
@@ -24,6 +26,9 @@ export function Gallery() {
           subtitle="Aerial views, the monument entrance, wide roads, theme gardens and Club Imperial."
         />
 
+        {/* Brochure composition: one large plate carrying the section, five
+            supporting frames. On lg the featured tile spans 2×2 of a 3-col
+            grid, so the six images tile it exactly with no gaps. */}
         <div className="mt-14 grid grid-cols-2 gap-4 lg:grid-cols-3">
           {preview.map((g, i) => (
             <motion.figure
@@ -32,7 +37,9 @@ export function Gallery() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.45, delay: (i % 3) * 0.06 }}
-              className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted"
+              className={`group relative overflow-hidden rounded-2xl bg-muted shadow-soft ring-1 ring-border/60 transition-shadow duration-500 hover:shadow-premium ${
+                i === 0 ? 'aspect-[4/3] lg:col-span-2 lg:row-span-2 lg:aspect-auto' : 'aspect-[4/3]'
+              }`}
             >
               <img
                 src={g.src}
@@ -62,6 +69,6 @@ export function Gallery() {
           </p>
         </div>
       </div>
-    </section>
+    </ParallaxScene>
   );
 }

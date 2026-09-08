@@ -20,9 +20,9 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-out-soft ${
         scrolled
-          ? 'border-b border-border/60 bg-background/85 py-2 shadow-sm backdrop-blur-xl'
+          ? 'border-b border-primary/15 bg-background/80 py-2 shadow-soft backdrop-blur-2xl backdrop-saturate-150'
           : 'bg-transparent py-3'
       }`}
     >

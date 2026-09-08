@@ -1,4 +1,4 @@
-import { AMENITY_GROUPS, BRAND, PRICE_TIERS, PROJECT, THEME_GARDENS } from './site-data';
+import { AMENITY_GROUPS, BRAND, PROJECT, THEME_GARDENS } from './site-data';
 
 /**
  * Canonical origin for the site. MUST be set to the real domain in production
@@ -20,6 +20,8 @@ export const ROUTES = [
   { path: '/', priority: 1.0, changeFrequency: 'weekly' as const },
   { path: '/gallery', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/marketing', priority: 0.7, changeFrequency: 'monthly' as const },
+  { path: '/privacy', priority: 0.2, changeFrequency: 'yearly' as const },
+  { path: '/terms', priority: 0.2, changeFrequency: 'yearly' as const },
 ];
 
 /* ── JSON-LD ─────────────────────────────────────────────────────────────
@@ -60,14 +62,13 @@ export function organizationJsonLd() {
   };
 }
 
-/** The township itself, with its amenities and price range. */
+/** The township itself and its amenities. No price or offer is published —
+ *  structured data must not expose a rate the page deliberately withholds. */
 export function projectJsonLd() {
   const amenities = [
     ...AMENITY_GROUPS.flatMap((g) => g.items.map((i) => i.label)),
     ...THEME_GARDENS.map((g) => g.name),
   ];
-  const prices = PRICE_TIERS.map((t) => t.nowValue);
-
   return {
     '@context': 'https://schema.org',
     '@type': 'Residence',
@@ -83,15 +84,6 @@ export function projectJsonLd() {
       name: label,
       value: true,
     })),
-    makesOffer: PRICE_TIERS.map((t) => ({
-      '@type': 'Offer',
-      name: `${t.type} plots`,
-      price: t.nowValue,
-      priceCurrency: 'INR',
-      description: `${t.now} ${t.unit} — ${t.note}`,
-      availability: 'https://schema.org/InStock',
-    })),
-    priceRange: `₹${Math.min(...prices)}–₹${Math.max(...prices)} per sq.ft.`,
   };
 }
 

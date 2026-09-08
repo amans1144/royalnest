@@ -7,14 +7,15 @@ import {
   PLOT_STATUS_LABEL,
   appliedPlc,
   plcPercent,
-  priceWithPlc,
   type PlotStatus,
 } from '@spb/types';
 import { pointInPolygon, polygonCentroid } from '@spb/utils';
-import { formatINR, projects } from '../lib/mock-data';
+import { projects } from '../lib/mock-data';
+import { BRAND } from '../lib/site-data';
 import { useMapStore } from '../lib/map-store';
 import { SectionHeading } from './section-heading';
-import { Search } from './icons';
+import { ParallaxScene, AmenitiesScene } from './parallax';
+import { Search, WhatsApp, Phone } from './icons';
 
 interface Pt {
   x: number;
@@ -215,18 +216,78 @@ export function PlotMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Until a real layout is published from the admin, the section shows a
+   * "coming soon" panel rather than the demo grid.
+   *
+   * The demo rendered invented Available / Reserved / Booked / Sold counts in
+   * the same UI the live map uses. A visitor cannot tell seeded numbers from
+   * real stock, so it read as live availability for plots that do not exist.
+   * A small "Sample layout" chip is not enough of a correction for that.
+   */
+  if (!isLive) {
+    return (
+      <ParallaxScene
+        id="availability"
+        className="bg-gradient-to-b from-[hsl(var(--secondary))] via-background to-[hsl(var(--secondary))] py-24"
+      >
+        <AmenitiesScene />
+        <div className="container-x relative">
+          <SectionHeading
+            eyebrow="Live Availability"
+            title="Interactive Plot Map"
+            subtitle="Plot-by-plot availability for this project is being finalised. Speak to an advisor for current availability and pricing."
+          />
+
+          <div className="surface mt-10 px-6 py-14 text-center sm:px-10 sm:py-20">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Search width={28} height={28} />
+            </div>
+            <h3 className="mt-5 font-display text-2xl font-semibold sm:text-3xl">
+              Interactive Plot Map — Coming Soon
+            </h3>
+            <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
+              Live plot availability for {projectName} will appear here once the layout is
+              released. In the meantime our team can share current availability, sizes and
+              pricing directly.
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <a
+                href="#contact"
+                className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5"
+              >
+                Enquire About Availability
+              </a>
+              <a
+                href={BRAND.whatsapp}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-xl border border-primary/40 px-5 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:bg-primary/[0.06]"
+              >
+                Ask on WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      </ParallaxScene>
+    );
+  }
+
   return (
-    <section id="availability" className="relative bg-gradient-to-b from-muted via-background to-muted py-24">
-      <div className="container-x">
+    <ParallaxScene
+      id="availability"
+      className="bg-gradient-to-b from-[hsl(var(--secondary))] via-background to-[hsl(var(--secondary))] py-24"
+    >
+      <AmenitiesScene />
+      {/* `relative` is required: AmenitiesScene is absolutely positioned, and a
+          positioned element paints above static content regardless of DOM order
+          — without this the whole map UI renders underneath the scenery. */}
+      <div className="container-x relative">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <SectionHeading
             eyebrow="Live Availability"
-            title="Interactive plot map"
-            subtitle={
-              isLive
-                ? `Explore ${projectName}'s site layout — hover to preview, click for details, book instantly.`
-                : `Select a project to view its live plot map. ${projectName} isn't published yet — showing a sample.`
-            }
+            title="Interactive Plot Map"
+            subtitle={`Explore ${projectName}’s site layout — hover to preview, click for details, book instantly.`}
           />
           <label className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 text-sm font-medium">
             <span className="text-muted-foreground">Project</span>
@@ -281,7 +342,12 @@ export function PlotMap() {
           >
             <svg
               ref={svgRef}
-              className="block h-full w-full touch-none select-none"
+              /* `touch-pan-y`, not `touch-none`: the map is 440px tall on a
+                 phone, so swallowing vertical touch would trap the reader
+                 inside it with no way to scroll past. The browser keeps page
+                 scroll; horizontal drag still reaches the pan handlers, and
+                 the zoom buttons + Fit cover what pinch would have done. */
+              className="block h-full w-full touch-pan-y select-none"
               style={{ cursor: pan.current ? 'grabbing' : 'grab' }}
               onPointerDown={(e) => {
                 svgRef.current?.setPointerCapture(e.pointerId);
@@ -335,7 +401,7 @@ export function PlotMap() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.12 }}
                   style={{ left: Math.min(tip.x + 16, (wrapRef.current?.clientWidth ?? 400) - 220), top: tip.y + 16 }}
-                  className="pointer-events-none absolute z-20 w-52 rounded-xl border border-border bg-popover/95 p-3 text-sm shadow-xl backdrop-blur"
+                  className="pointer-events-none absolute z-20 w-52 rounded-xl border border-border bg-card/95 p-3 text-sm shadow-xl backdrop-blur"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">Plot {hovered.number}</span>
@@ -355,7 +421,6 @@ export function PlotMap() {
                         </dd>
                       </div>
                     )}
-                    <div className="flex justify-between"><dt>Price</dt><dd className="font-semibold text-primary">{formatINR(priceWithPlc(hovered.price, hovered))}</dd></div>
                   </dl>
                 </motion.div>
               )}
@@ -378,25 +443,28 @@ export function PlotMap() {
                 <dl className="mt-5 space-y-3 text-sm">
                   <Row label="Area" value={`${selected.area} sq.ft`} />
                   <Row label="Facing" value={selected.facing} />
-                  <Row label="Base price" value={formatINR(selected.price)} />
                   {appliedPlc(selected).map((c) => (
-                    <Row
-                      key={c.key}
-                      label={`${c.label} (+${c.pct}%)`}
-                      value={`+${formatINR(Math.round((selected.price * c.pct) / 100))}`}
-                    />
+                    <Row key={c.key} label={c.label} value={`+${c.pct}%`} />
                   ))}
-                  <Row
-                    label={plcPercent(selected) > 0 ? `Total (incl. +${plcPercent(selected)}% PLC)` : 'Total'}
-                    value={formatINR(priceWithPlc(selected.price, selected))}
-                    highlight
-                  />
+                  {/* No rupee figure is published for a plot — the applicable
+                      rate is confirmed by an advisor on enquiry. */}
+                  <Row label="Rate" value="On request" highlight />
                 </dl>
                 <div className="mt-6 space-y-2">
-                  <button disabled={selected.status === 'SOLD' || selected.status === 'BLOCKED'} className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40">
-                    {selected.status === 'AVAILABLE' ? 'Book this plot' : 'Enquire now'}
-                  </button>
-                  <button className="w-full rounded-xl border border-border py-3 text-sm font-medium hover:bg-accent">Download price sheet</button>
+                  <a
+                    href={`${BRAND.whatsapp}?text=${encodeURIComponent(`Hi, I'd like details for plot ${selected.number} at ${projectName}.`)}`}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  >
+                    <WhatsApp width={16} height={16} /> Enquire on WhatsApp
+                  </a>
+                  <a
+                    href={BRAND.phoneHref}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 py-3 text-sm font-medium transition-colors hover:bg-primary/[0.06]"
+                  >
+                    <Phone width={16} height={16} /> Call {BRAND.phone}
+                  </a>
                 </div>
               </div>
             ) : (
@@ -405,13 +473,13 @@ export function PlotMap() {
                   <Search width={22} height={22} />
                 </div>
                 <p className="mt-4 font-medium">Select a plot</p>
-                <p className="mt-1 text-sm text-muted-foreground">Click any plot on the map to see its size, facing, price, and booking options.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Click any plot on the map to see its size, facing and enquiry options.</p>
               </div>
             )}
           </div>
         </div>
       </div>
-    </section>
+    </ParallaxScene>
   );
 }
 

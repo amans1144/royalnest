@@ -28,7 +28,7 @@ const KIND_ICON: Record<MarketingKind, typeof FileText> = {
  *  even before their poster (if any) loads. */
 const KIND_TILE: Record<MarketingKind, string> = {
   image: 'from-slate-500/20 to-slate-700/30',
-  pdf: 'from-primary/25 to-amber-700/25',
+  pdf: 'from-primary/25 to-[hsl(var(--forest))]/25',
   video: 'from-navy/40 to-primary/25',
 };
 

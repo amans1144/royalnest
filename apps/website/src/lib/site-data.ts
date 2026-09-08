@@ -47,7 +47,7 @@ export const PROJECT = {
   tagline: 'A Vacation-Themed Township',
   pitch:
     'A township designed around nature, wellness, recreation and modern living — on the Lucknow–Sultanpur growth corridor.',
-  locality: 'Nizampur, Gosaiganj – Satrikh Road (Near Gosaiganj)',
+  locality: 'Nizampur, Gosaiganj–Satrikh Road (Near Gosaiganj)',
   city: 'Lucknow',
   highway: 'Lucknow–Sultanpur NH-731',
   status: 'Pre-RERA Launch',
@@ -63,15 +63,14 @@ export const HERO_HIGHLIGHTS = [
   { icon: 'Landmark', label: 'Club Imperial' },
 ];
 
+/**
+ * Plot categories. Deliberately carries NO figures: pricing is shared by an
+ * advisor on request, so no rate should exist in the public bundle at all —
+ * hiding a number in the UI still ships it in the page source.
+ */
 export type PriceTier = {
   type: 'Residential' | 'Commercial';
   icon: string;
-  now: string;
-  after: string;
-  /** Numeric ₹/sq.ft. so the post-RERA uplift can be computed, not hardcoded. */
-  nowValue: number;
-  afterValue: number;
-  unit: string;
   note: string;
 };
 
@@ -79,34 +78,20 @@ export const PRICE_TIERS: PriceTier[] = [
   {
     type: 'Residential',
     icon: 'Home',
-    now: '₹1,799',
-    after: '₹2,200',
-    nowValue: 1799,
-    afterValue: 2200,
-    unit: 'per Sq.Ft. + AC',
-    note: 'Plotted residential inventory across 30–50 ft. road frontages.',
+    note: 'Plotted residential inventory across 30–50 ft. road frontages, in a range of sizes and facings.',
   },
   {
     type: 'Commercial',
     icon: 'Building',
-    now: '₹1,999',
-    after: '₹2,500',
-    nowValue: 1999,
-    afterValue: 2500,
-    unit: 'per Sq.Ft. + AC',
-    note: 'Dedicated commercial complex within the township.',
+    note: 'A dedicated commercial complex within the township, suited to retail and offices.',
   },
 ];
-
-/** Post-RERA uplift for a tier, e.g. 22 for ₹1,799 → ₹2,200. */
-export const priceUpliftPct = (t: PriceTier): number =>
-  Math.round(((t.afterValue - t.nowValue) / t.nowValue) * 100);
 
 export const INVEST_REASONS = [
   {
     icon: 'Percent',
-    title: 'Pre-RERA Entry Price',
-    text: 'Book at ₹1,799/sq.ft. today. Post-RERA approval the rate revises to ₹2,200/sq.ft. — a built-in gain from day one.',
+    title: 'Pre-RERA Introductory Price',
+    text: 'Book at the pre-RERA introductory rate. Speak to an advisor for the current rate — future pricing is subject to revision.',
   },
   {
     icon: 'Rocket',
@@ -144,7 +129,7 @@ export const PAYMENT_PLAN = [
 export const PLC_CHARGES = [
   '10% extra — Corner / Park Facing / Park Adjacent plots (each)',
   '5% extra — 45 Ft. / 40 Ft. / Double Side Road plots (each)',
-  '₹50 per Sq.Ft. Development Charges, plus Club Charges',
+  'Development Charges and Club Charges applicable — shared on request',
 ];
 
 /* ── Amenities ──────────────────────────────────────────────────────────── */
@@ -217,7 +202,7 @@ export const THEME_GARDENS = [
   { icon: 'Trees', name: 'Mini Forest with Adventure Trail' },
   { icon: 'Toy', name: 'Fairy & Dinosaur Garden' },
   { icon: 'Flower', name: '12-Month Bloom Garden & Floral Tunnel' },
-  { icon: 'Dog', name: 'Dogs Park' },
+  { icon: 'Dog', name: 'Dog Park' },
   { icon: 'Temple', name: 'Spiritual Gods Park' },
 ];
 
@@ -614,7 +599,7 @@ export const FAQS = [
     a: 'Our featured plots are registry-ready with clear, verified titles, so you can register in your name immediately after booking.',
   },
   {
-    q: 'Do you offer installment / EMI options?',
+    q: 'Do you offer instalment / EMI options?',
     a: 'Yes, we offer flexible EMI and instalment plans tailored to your budget. Speak to an advisor to design a plan that works for you.',
   },
   {

@@ -47,3 +47,16 @@ tmp/
 ._*
 .Spotlight-V100
 .Trashes
+
+# Production secrets — publish token, DB/Redis passwords, JWT secrets.
+# Never commit these; deploy.sh creates .env.production on the server.
+.env.production
+.env.prod
+!.env.prod.example
+
+# Deployment artefacts that are machine-specific or sensitive.
+deploy/proxy/certs/*
+!deploy/proxy/certs/.gitkeep
+backups/
+*.sql.gz
+*.tar.gz

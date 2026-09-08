@@ -1,0 +1,147 @@
+# ============================================================================
+#  RoyalNest — production stack (single VPS).
+#
+#      host nginx :443  ──►  proxy (Caddy) ──┬─► website:3000 ──► api:4000
+#                            127.0.0.1:8090  └─► admin:3005          │
+#                                                            postgres / redis
+#
+#  Only the proxy binds a host port, and by default it binds to 127.0.0.1 —
+#  so nothing in this stack is reachable from the internet except through the
+#  host nginx that terminates TLS. website/admin/api/postgres/redis have no
+#  published ports at all.
+#
+#  Driven by `bash deploy.sh`. Direct use:
+#      cp .env.prod.example .env.production   # fill it in
+#      docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+#
+#  NOTE: the NEXT_PUBLIC_* values below are build args, not runtime env. They
+#  are inlined into the client bundle at build time, so changing one requires
+#  `up -d --build`, never just a restart.
+# ============================================================================
+name: royalnest
+
+services:
+  # ── Edge proxy. Host-routes the two public apps. ──────────────────────────
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [website, admin]
+    entrypoint: ['/bin/sh', '/etc/proxy/entrypoint.sh']
+    environment:
+      PROXY_DOMAIN: ${PROXY_DOMAIN:?set PROXY_DOMAIN in .env.production}
+      PROXY_INTERNAL: ${PROXY_INTERNAL:-true}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      # Internal mode (default): bound to loopback, nginx proxies to it.
+      # Edge mode: set PROXY_BIND=0.0.0.0, PROXY_HTTP_PORT=80, PROXY_HTTPS_PORT=443.
+      - '${PROXY_BIND:-127.0.0.1}:${PROXY_HTTP_PORT:-8090}:80'
+      - '${PROXY_BIND:-127.0.0.1}:${PROXY_HTTPS_PORT:-8453}:443'
+    volumes:
+      - ./deploy/proxy/entrypoint.sh:/etc/proxy/entrypoint.sh:ro
+      - ./deploy/proxy/certs:/certs:ro
+      - caddy_data:/data      # persists Let's Encrypt certs across restarts
+      - caddy_config:/config
+    networks: [royalnest_net]
+
+  # ── Public website. Owns the published-content store. ─────────────────────
+  website:
+    build:
+      context: .
+      dockerfile: apps/website/Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        NEXT_PUBLIC_GTM_ID: ${NEXT_PUBLIC_GTM_ID:-}
+        NEXT_PUBLIC_ALLOW_INDEXING: ${NEXT_PUBLIC_ALLOW_INDEXING:-}
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      # Published gallery/marketing/settings/layout JSON. A named volume, so a
+      # redeploy or `down` never takes the site's content with it.
+      DATA_DIR: /var/lib/spbuilders
+    volumes:
+      - content:/var/lib/spbuilders
+    expose: ['3000']
+    networks: [royalnest_net]
+
+  # ── Admin console. Publishes into the website over the internal network. ──
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NEXT_PUBLIC_WEBSITE_URL: ${NEXT_PUBLIC_WEBSITE_URL}
+        NEXT_PUBLIC_PUBLISH_TOKEN: ${NEXT_PUBLIC_PUBLISH_TOKEN}
+        NEXT_PUBLIC_ADMIN_EMAIL: ${NEXT_PUBLIC_ADMIN_EMAIL:-}
+        NEXT_PUBLIC_ADMIN_PASSWORD: ${NEXT_PUBLIC_ADMIN_PASSWORD:-}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    expose: ['3005']
+    networks: [royalnest_net]
+
+  # ── API. Internal only — no published port, ever. ─────────────────────────
+  #  Still a scaffold (health endpoints only) and nothing on the site calls it.
+  #  Start the stack with `--scale api=0` (or comment this out with postgres and
+  #  redis) to save ~400 MB of RAM on a 1 vCPU box until the API has real modules.
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    expose: ['4000']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [royalnest_net]
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-spb}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.production}
+      POSTGRES_DB: ${DB_NAME:-spbuilders}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-spb} -d ${DB_NAME:-spbuilders}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [royalnest_net]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['sh', '-c', 'redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.production}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [royalnest_net]
+
+volumes:
+  content:        # published site content — the thing you cannot rebuild
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  royalnest_net:

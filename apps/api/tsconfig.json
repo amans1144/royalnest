@@ -9,6 +9,7 @@
     "outDir": "dist",
     "noEmit": false,
     "declaration": false,
+    "declarationMap": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "isolatedModules": false,
@@ -19,6 +20,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test"]
 }

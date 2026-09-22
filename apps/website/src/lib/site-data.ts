@@ -1,21 +1,40 @@
 /**
- * RoyalNest Realty — site content.
+ * Royalnest Realty — site content.
  * Single source of truth for the marketing site copy & data.
  */
 
 export const BRAND = {
-  name: 'RoyalNest Realty',
-  short: 'RoyalNest',
+  name: 'Royalnest Realty',
+  short: 'Royalnest',
   tagline: 'Premium plotted developments across Lucknow',
-  phone: '+91 99990 00000',
-  phoneHref: 'tel:+919999000000',
-  whatsapp: 'https://wa.me/919999000000',
-  email: 'hello@royalnestrealty.in',
-  address: '12, Vibhuti Khand, Gomti Nagar, Lucknow 226010',
+  /**
+   * Phone and WhatsApp are deliberately EMPTY, not placeholders.
+   *
+   * Publishing a number that does not reach the sales team is worse than
+   * publishing none, so every call/WhatsApp affordance on the site is hidden
+   * while these are blank (see HAS_PHONE / HAS_WHATSAPP below). Fill all three
+   * in and every button, link and JSON-LD telephone comes back at once — no
+   * component needs touching.
+   */
+  phone: '',
+  phoneHref: '',
+  whatsapp: '',
+  email: 'info@royalnestrealty.in',
+  address: 'D1-184, Ansal Sushant Golf City, Lucknow',
   hours: 'Mon–Sat, 10:00 AM – 7:00 PM',
-  rera: 'UPRERAAGT10432',
+  // No `rera` field: the registration number was removed from the site. An
+  // unreferenced property here would still be bundled into the page source, so
+  // it is deleted rather than merely unused.
   since: 2009,
 };
+
+/**
+ * Whether the site may advertise a phone / WhatsApp route at all. Components
+ * gate their CTAs on these rather than each testing BRAND.phone themselves, so
+ * there is exactly one definition of "we have a number".
+ */
+export const HAS_PHONE = BRAND.phone !== '' && BRAND.phoneHref !== '';
+export const HAS_WHATSAPP = BRAND.whatsapp !== '';
 
 /** `short` is what the desktop navbar renders when the full label would crowd
  *  the bar; the footer and mobile menu always show the full label. */
@@ -47,18 +66,32 @@ export const PROJECT = {
   tagline: 'A Vacation-Themed Township',
   pitch:
     'A township designed around nature, wellness, recreation and modern living — on the Lucknow–Sultanpur growth corridor.',
-  locality: 'Nizampur, Gosaiganj–Satrikh Road (Near Gosaiganj)',
+  locality: 'Nizampur, Gosaiganj–Barabanki Road',
   city: 'Lucknow',
   highway: 'Lucknow–Sultanpur NH-731',
-  status: 'Pre-RERA Launch',
-  offerNote: 'Limited period Pre-RERA launch offer',
+  status: 'New Launch',
+  offerNote: 'Limited period launch offer',
   sportsArea: '40,000+ Sq.Ft.',
   plantSpecies: '30+',
 };
 
+export const THEME_GARDENS = [
+  { icon: 'Flower', name: 'Rose Garden' },
+  { icon: 'Leaf', name: 'Medicinal & Herbal Garden' },
+  { icon: 'Sparkle', name: 'Fragrance Garden' },
+  { icon: 'Trees', name: 'Fruits & Mango Garden' },
+  { icon: 'Landmark', name: 'Signature Central Park' },
+  { icon: 'Trees', name: 'Mini Forest with Adventure Trail' },
+  { icon: 'Toy', name: 'Fairy & Dinosaur Garden' },
+  { icon: 'Flower', name: '12-Month Bloom Garden & Floral Tunnel' },
+  { icon: 'Dog', name: 'Dog Park' },
+  { icon: 'Temple', name: 'Spiritual Gods Park' },
+  { icon: 'Flower', name: 'Botanical Garden' },
+];
+
 export const HERO_HIGHLIGHTS = [
-  { icon: 'Road', label: '50 Ft. Wide Roads' },
-  { icon: 'Trees', label: '10 Theme Gardens' },
+  { icon: 'Road', label: '30, 40 & 45 Ft. Roads' },
+  { icon: 'Trees', label: `${THEME_GARDENS.length} Theme Gardens` },
   { icon: 'Trophy', label: '40,000+ Sq.Ft. Sports Zone' },
   { icon: 'Landmark', label: 'Club Imperial' },
 ];
@@ -78,30 +111,30 @@ export const PRICE_TIERS: PriceTier[] = [
   {
     type: 'Residential',
     icon: 'Home',
-    note: 'Plotted residential inventory across 30–50 ft. road frontages, in a range of sizes and facings.',
+    note: 'Residential plots ranging from approximately 1,000 to 2,100 sq. ft., thoughtfully planned along 30, 40 and 45 ft. roads with multiple sizes, locations and facing options.',
   },
   {
     type: 'Commercial',
     icon: 'Building',
-    note: 'A dedicated commercial complex within the township, suited to retail and offices.',
+    note: 'Strategically planned commercial plots and spaces within the township, suitable for retail outlets, offices and essential neighbourhood services.',
   },
 ];
 
 export const INVEST_REASONS = [
   {
     icon: 'Percent',
-    title: 'Pre-RERA Introductory Price',
-    text: 'Book at the pre-RERA introductory rate. Speak to an advisor for the current rate — future pricing is subject to revision.',
+    title: 'Introductory Launch Price',
+    text: 'Book at the current introductory rate. Speak to an advisor for the applicable rate — future pricing is subject to revision.',
   },
   {
     icon: 'Rocket',
     title: 'Government Growth Engine',
-    text: 'LDA IT City (3,500 ac), Wellness City (1,500 ac) and Knowledge Park (350+ ac) are all coming up around the site.',
+    text: 'LDA IT City (3,500 ac), LDA Wellness City (1,500 ac) and LDA Knowledge City (2,200+ ac) are all coming up around the site.',
   },
   {
     icon: 'Route',
     title: 'Six Highways & Expressways',
-    text: 'NH-731, NH-230, Purvanchal & Greenfield Expressways, plus a proposed 6-lane corridor to Gomti Nagar Extension.',
+    text: 'NH-731, NH-230, Purvanchal & Greenfield Expressways, plus a proposed six-lane masterplan road and Green Corridor to Gomti Nagar Extension.',
   },
   {
     icon: 'Building',
@@ -110,8 +143,8 @@ export const INVEST_REASONS = [
   },
   {
     icon: 'Trees',
-    title: '700+ Acres of Greenbelt',
-    text: 'A protected green corridor and the 37-acre CG Wetland City keep the surroundings low-density and premium.',
+    title: '1,000+ Acres of Greenbelt',
+    text: 'A protected green corridor, the 37-acre LDA Wetland and C.G. City keep the surroundings low-density and premium.',
   },
   {
     icon: 'Train',
@@ -121,15 +154,9 @@ export const INVEST_REASONS = [
 ];
 
 export const PAYMENT_PLAN = [
-  { pct: '10%', title: 'Booking Amount', text: 'Block your preferred plot at the pre-RERA rate.' },
-  { pct: '20%', title: 'Within 30 Days', text: 'Second instalment on allotment confirmation.' },
-  { pct: '70%', title: 'Within 45 Days', text: 'Balance payment — then registry and possession.' },
-];
-
-export const PLC_CHARGES = [
-  '10% extra — Corner / Park Facing / Park Adjacent plots (each)',
-  '5% extra — 45 Ft. / 40 Ft. / Double Side Road plots (each)',
-  'Development Charges and Club Charges applicable — shared on request',
+  { pct: '10%', title: 'Booking Amount', text: 'Block your preferred plot at the launch rate.' },
+  { pct: '40%', title: 'Within 30 Days', text: 'Second instalment on allotment confirmation.' },
+  { pct: '50%', title: 'Within 45 Days', text: 'Balance payment — then registry and possession.' },
 ];
 
 /* ── Amenities ──────────────────────────────────────────────────────────── */
@@ -145,14 +172,12 @@ export const AMENITY_GROUPS: AmenityGroup[] = [
     title: 'Infrastructure',
     icon: 'Road',
     items: [
-      { icon: 'Road', label: '50, 45, 43, 40 & 30 Ft. Wide Roads' },
-      { icon: 'Droplet', label: 'Underground Sewer & Drainage System' },
-      { icon: 'Zap', label: 'Dedicated Electrification with Transformer' },
-      { icon: 'Lightbulb', label: 'Modern Street Lighting' },
-      { icon: 'Gate', label: 'Natural Stone Cladding Monument Entrance Gate' },
-      { icon: 'Fountain', label: 'Greek-Style Fountain & FRP Entrance Pillars' },
-      { icon: 'Car', label: 'Visitor Parking Spaces' },
-      { icon: 'Handshake', label: 'Dedicated Maintenance Office' },
+      { icon: 'Gate', label: 'Grand Entrance Gate & Circular Fountain' },
+      { icon: 'Road', label: '30, 40 and 45 Ft. Planned Roads' },
+      { icon: 'Droplet', label: 'Underground Sewerage & Drainage' },
+      { icon: 'Zap', label: 'Electrification & Modern Streetlights' },
+      { icon: 'Car', label: 'Visitor Parking' },
+      { icon: 'Waves', label: 'Rainwater Harvesting' },
     ],
   },
   {
@@ -160,59 +185,50 @@ export const AMENITY_GROUPS: AmenityGroup[] = [
     icon: 'Trophy',
     items: [
       { icon: 'Trophy', label: '40,000+ Sq.Ft. Sports Area' },
-      { icon: 'Waves', label: 'Swimming Pool' },
-      { icon: 'Dumbbell', label: 'Outdoor & Indoor Gymnasium' },
+      { icon: 'Trophy', label: 'Cricket Practice Nets' },
+      { icon: 'Dumbbell', label: 'Indoor & Outdoor Gym' },
       { icon: 'Yoga', label: 'Yoga & Meditation Zone' },
-      { icon: 'Trophy', label: 'Cricket Practice Net Pitch' },
-      { icon: 'Trophy', label: 'Outdoor Sports Zone' },
-      { icon: 'Toy', label: "Children's Play Area" },
     ],
   },
   {
     title: 'Green & Leisure',
     icon: 'Trees',
     items: [
-      { icon: 'Trees', label: 'Lush Green Plantation Throughout' },
-      { icon: 'Flower', label: 'Botanical Garden with 30+ Plant Species' },
-      { icon: 'Trees', label: 'Landscaped Parks & Open Green Spaces' },
-      { icon: 'Leaf', label: 'Gazebo with Comfortable Seating Areas' },
-      { icon: 'Leaf', label: 'Plots with Sandwich Parks' },
+      { icon: 'Flower', label: '12-Month Bloom Garden' },
+      { icon: 'Flower', label: 'Floral Tunnel' },
+      { icon: 'Leaf', label: 'Medicinal & Herbal Garden' },
+      { icon: 'Sparkle', label: 'Fragrance & Rose Garden' },
+      { icon: 'Flower', label: 'Botanical Garden' },
+      { icon: 'Trees', label: 'Fruits & Mango Orchard' },
+      { icon: 'Toy', label: 'Dinosaur Garden' },
+      { icon: 'Dog', label: 'Dedicated Dog Park' },
+      { icon: 'Trees', label: 'Mini Forest & Adventure Trail' },
+      { icon: 'Users', label: 'Senior Citizen Park' },
+      { icon: 'Leaf', label: 'Organic Farming Garden' },
     ],
   },
   {
     title: 'Community & Security',
     icon: 'Shield',
     items: [
-      { icon: 'Landmark', label: 'Club Imperial — Guest Rooms & Multipurpose Hall' },
-      { icon: 'Utensils', label: 'Cafeteria, Changing Rooms & Indoor Games' },
-      { icon: 'Trophy', label: 'Badminton Court & Gymnasium' },
-      { icon: 'Building', label: 'Dedicated Commercial Complex' },
-      { icon: 'Temple', label: 'Grand Temple' },
-      { icon: 'Camera', label: '24×7 Security & CCTV Surveillance' },
+      { icon: 'Landmark', label: 'Premium Clubhouse' },
+      { icon: 'Toy', label: "Kids' Play Area" },
+      { icon: 'Temple', label: 'Temple (Spiritual Area)' },
+      { icon: 'Camera', label: 'CCTV Surveillance & Security' },
+      { icon: 'Handshake', label: 'Maintenance Office' },
+      { icon: 'Building', label: 'Commercial Complex' },
     ],
   },
 ];
 
-export const THEME_GARDENS = [
-  { icon: 'Flower', name: 'Rose Garden' },
-  { icon: 'Leaf', name: 'Medicinal & Herbal Garden' },
-  { icon: 'Sparkle', name: 'Fragrance Garden' },
-  { icon: 'Trees', name: 'Fruits & Mango Garden' },
-  { icon: 'Landmark', name: 'Signature Central Park' },
-  { icon: 'Trees', name: 'Mini Forest with Adventure Trail' },
-  { icon: 'Toy', name: 'Fairy & Dinosaur Garden' },
-  { icon: 'Flower', name: '12-Month Bloom Garden & Floral Tunnel' },
-  { icon: 'Dog', name: 'Dog Park' },
-  { icon: 'Temple', name: 'Spiritual Gods Park' },
-];
+
 
 /* ── Location ───────────────────────────────────────────────────────────── */
 
 export const LOCATION_STATS = [
-  { value: 15, suffix: ' km', label: 'From Shaheed Path' },
-  { value: 20, suffix: ' min', label: 'Current Drive Time' },
-  { value: 12, suffix: ' min', label: 'After Road Upgrades' },
-  { value: 700, suffix: '+ ac', label: 'Greenbelt & Parks' },
+  { value: 20, suffix: ' min', label: 'Current Drive from Shaheed Path' },
+  { value: 12, suffix: ' min', label: 'After Masterplan Road Upgrade' },
+  { value: 1000, suffix: '+ ac', label: 'Greenbelt & Parks' },
 ];
 
 export type LocationGroup = {
@@ -226,13 +242,13 @@ export const LOCATION_GROUPS: LocationGroup[] = [
     title: 'Roads & Expressways',
     icon: 'Route',
     items: [
-      'Adjoining 4-lane, 30 m Gosaiganj–Satrikh NH-230',
-      'Upcoming 6-lane, 45 m road right beside the project',
+      'Adjoining 4-lane, 80 m Gosaiganj–Satrikh NH-230',
+      'Upcoming 45 m road right beside the project',
       '100 m, 8-lane widening of Lucknow–Sultanpur NH-731',
       'Purvanchal Expressway to Eastern Uttar Pradesh',
       'Greenfield Expressway linking Purvanchal & Agra Expressway',
       '6-lane future connectivity to Gomti Nagar Extension',
-      'New Jail Road NH connecting Gosaiganj–Satrikh NH',
+      'New Jail Road NH connecting Gosaiganj to Raebareli & Kanpur NH',
       '6-lane Green Corridor to New and Old Lucknow',
     ],
   },
@@ -243,6 +259,7 @@ export const LOCATION_GROUPS: LocationGroup[] = [
       'LDA IT City Yojana — 3,500 acres',
       '188-acre Central Park & Golf Course inside IT City',
       'LDA Wellness City Yojana — 1,500 acres',
+      'LDA Knowledge City — 2,200+ acres',
       'UPAVP Saumitra Vihar Yojana — 560 acres',
       'LDA CG Wetland City — 37-acre urban oasis, 200+ bird species',
       'State Capital Region (SCR) expansion',
@@ -258,7 +275,7 @@ export const LOCATION_GROUPS: LocationGroup[] = [
       'Universities, institutes, training & coaching centres',
       '150-acre Healthcare Zone with hospitals & medical college',
       'Wellness centres, yoga and naturopathy facilities',
-      'Proposed Bus Terminal and Truck Terminal',
+      'Proposed ISBT Bus Stand and Transport Nagar',
       'Metro line proposed up to Gosaiganj',
     ],
   },
@@ -271,7 +288,7 @@ export const LOCATION_GROUPS: LocationGroup[] = [
       'Ansal API, Omaxe and Amrawati Group nearby',
       'Pintail Group and Excella developments close by',
       'Ekana Sportz City a short drive away',
-      '700+ acres of greenbelt and parks around the corridor',
+      '1,000+ acres of greenbelt and parks around the corridor',
     ],
   },
 ];
@@ -506,7 +523,7 @@ const u = (id: string, w = 1200) =>
 export const GALLERY: GalleryItem[] = [
   { src: u('1500382017468-9049fed747ef'), label: 'Aerial Township View', category: 'Township' },
   { src: u('1568605114967-8130f3a36994'), label: 'Monument Entrance Gate', category: 'Township' },
-  { src: u('1449844908441-8829872d2607'), label: '50 Ft. Wide Internal Roads', category: 'Township' },
+  { src: u('1449844908441-8829872d2607'), label: '30, 40 & 45 Ft. Wide Internal Roads', category: 'Township' },
   { src: u('1512917774080-9991f1c4c750'), label: 'Plotted Layout', category: 'Township' },
   { src: u('1486406146926-c627a92ad1ab'), label: 'Dedicated Commercial Complex', category: 'Township' },
   { src: u('1590725140246-20acdee442be'), label: 'Modern Street Lighting', category: 'Township' },
@@ -555,7 +572,7 @@ export const TESTIMONIALS: Testimonial[] = [
     location: 'Sultanpur Road',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
     rating: 5,
-    text: 'RoyalNest made everything effortless. I got a 2000 sq.ft plot with a clear title in under 30 days. The team handled the registry and loan end-to-end.',
+    text: 'Royalnest made everything effortless. I got a 2000 sq.ft plot with a clear title in under 30 days. The team handled the registry and loan end-to-end.',
     featured: true,
   },
   {
@@ -584,7 +601,7 @@ export const ABOUT_STATS = [
 export const FAQS = [
   {
     q: 'How do I verify a project is RERA approved?',
-    a: 'Every RoyalNest project lists its RERA registration number. You can cross-check it on the UP RERA portal, and our team will walk you through the verification during your site visit.',
+    a: 'Every Royalnest project lists its RERA registration number. You can cross-check it on the UP RERA portal, and our team will walk you through the verification during your site visit.',
   },
   {
     q: 'Do you provide home / plot loan assistance?',

@@ -1,5 +1,16 @@
 # Deploying to a Hostinger KVM VPS
 
+> [!WARNING]
+> **Superseded — this describes the older bare-metal setup** (pnpm build on the
+> host, one systemd unit per app, nginx straight to ports 3000/3005). The stack
+> that actually ships now runs **everything in Docker**, driven by `deploy.sh`
+> and `docker-compose.prod.yml`, with Caddy behind the host nginx.
+>
+> **Use [`deploy/DEPLOY.md`](deploy/DEPLOY.md) instead.** It is the current
+> runbook: env setup, build, logs, backups and the enquiry-mail configuration.
+> This file is kept only for reference on the host-level bits that did not
+> change (firewall, DNS, certbot).
+
 Target: **KVM 1** (1 vCPU, 4 GB RAM, 50 GB NVMe), Ubuntu 24.04 LTS.
 
 What actually gets deployed today:
@@ -141,6 +152,16 @@ DATA_DIR=/var/lib/spbuilders
 PUBLISH_TOKEN=<the openssl output>
 ADMIN_ORIGIN=https://admin.royalnestrealty.in
 
+# ── Contact-form enquiries ──
+# Without these the form still works and every enquiry is recorded to
+# $DATA_DIR/spb-leads.jsonl, but nobody is emailed about it.
+LEAD_INBOX=info@royalnestrealty.in
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=info@royalnestrealty.in
+SMTP_PASS=<the mailbox password>
+SMTP_FROM=RoyalNest Realty <info@royalnestrealty.in>
+
 # ── Admin (port 3005) ──
 NEXT_PUBLIC_WEBSITE_URL=https://royalnestrealty.in
 NEXT_PUBLIC_PUBLISH_TOKEN=<the same openssl output>
@@ -157,8 +178,15 @@ one and you must rebuild:
 - `NEXT_PUBLIC_WEBSITE_URL` / `NEXT_PUBLIC_PUBLISH_TOKEN` — where the admin
   publishes to, and the token it sends
 
-`DATA_DIR`, `PUBLISH_TOKEN` and `ADMIN_ORIGIN` are read at runtime by the
-website process, so those only need a restart.
+`DATA_DIR`, `PUBLISH_TOKEN`, `ADMIN_ORIGIN` and all the `SMTP_*` / `LEAD_INBOX`
+values are read at runtime by the website process, so those only need a restart.
+
+### Checking enquiries
+
+See **[`deploy/DEPLOY.md`](deploy/DEPLOY.md) → Contact-form enquiries**. The
+commands here would be wrong for the Docker stack: the lead log lives in the
+`content` volume, not on the host filesystem, and the logs come from
+`docker compose`, not `journalctl`.
 
 ## 6. Install and build
 

@@ -5,14 +5,17 @@ import { motion } from 'framer-motion';
 import { Button } from '@spb/ui';
 import { SectionHeading } from './section-heading';
 import { ParallaxScene, HorizonScene } from './parallax';
-import { MapPin, Phone, Mail, Clock, Check, WhatsApp } from './icons';
-import { BRAND, INTEREST_OPTIONS } from '../lib/site-data';
+import { MapPin, Phone, Mail, Check, WhatsApp } from './icons';
+import { BRAND, HAS_PHONE, HAS_WHATSAPP, INTEREST_OPTIONS } from '../lib/site-data';
 
 const details = [
   { icon: MapPin, label: 'Office', value: BRAND.address },
-  { icon: Phone, label: 'Phone', value: BRAND.phone, href: BRAND.phoneHref },
+  // The phone card is omitted entirely rather than rendered empty while there
+  // is no published number.
+  ...(HAS_PHONE
+    ? [{ icon: Phone, label: 'Phone', value: BRAND.phone, href: BRAND.phoneHref }]
+    : []),
   { icon: Mail, label: 'Email', value: BRAND.email, href: `mailto:${BRAND.email}` },
-  { icon: Clock, label: 'Hours', value: BRAND.hours },
 ];
 
 /* Spacious, quiet fields with an unmistakable green focus state (§14). */
@@ -23,6 +26,35 @@ const inputCls =
 
 export function Contact() {
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (sending) return;
+    setSending(true);
+    setError(null);
+
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      if (!res.ok || !json?.ok) {
+        setError(json?.error ?? 'Something went wrong. Please email us instead.');
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      // Offline, DNS, blocked request — the enquiry never left the browser.
+      setError('Could not reach the server. Please check your connection and try again.');
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <ParallaxScene
@@ -70,11 +102,13 @@ export function Contact() {
                 </div>
               </div>
             ))}
-            <a href={BRAND.whatsapp} target="_blank" rel="noreferrer">
-              <Button size="lg" className="w-full bg-[#25D366] text-white hover:bg-[#1fb457]">
-                <WhatsApp width={18} height={18} /> Chat on WhatsApp
-              </Button>
-            </a>
+            {HAS_WHATSAPP && (
+              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer">
+                <Button size="lg" className="w-full bg-[#25D366] text-white hover:bg-[#1fb457]">
+                  <WhatsApp width={18} height={18} /> Chat on WhatsApp
+                </Button>
+              </a>
+            )}
           </motion.div>
 
           {/* Enquiry form */}
@@ -93,24 +127,38 @@ export function Contact() {
                 </span>
                 <h4 className="mt-4 font-display text-xl font-semibold">Message sent!</h4>
                 <p className="mt-2 max-w-sm text-muted-foreground">
-                  Thanks for reaching out. A RoyalNest advisor will contact you within one business
+                  Thanks for reaching out. A Royalnest advisor will contact you within one business
                   day.
                 </p>
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubmitted(true);
-                }}
-                className="mt-6 grid gap-4"
-              >
+              <form onSubmit={onSubmit} className="mt-6 grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <input required placeholder="Full name" className={inputCls} />
-                  <input required type="tel" placeholder="Phone number" className={inputCls} />
+                  <input
+                    name="name"
+                    required
+                    autoComplete="name"
+                    placeholder="Full name"
+                    className={inputCls}
+                  />
+                  <input
+                    name="phone"
+                    required
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    placeholder="Phone number"
+                    className={inputCls}
+                  />
                 </div>
-                <input type="email" placeholder="Email address" className={inputCls} />
-                <select required defaultValue="" className={inputCls}>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Email address"
+                  className={inputCls}
+                />
+                <select name="interest" required defaultValue="" className={inputCls}>
                   <option value="" disabled>
                     I’m interested in…
                   </option>
@@ -118,9 +166,34 @@ export function Contact() {
                     <option key={o}>{o}</option>
                   ))}
                 </select>
-                <textarea rows={4} placeholder="Your message" className={inputCls} />
-                <Button type="submit" size="lg" className="w-full">
-                  Send Enquiry
+                <textarea
+                  name="message"
+                  rows={4}
+                  placeholder="Your message"
+                  className={inputCls}
+                />
+
+                {/* Honeypot — hidden from people, irresistible to bots. Off-screen
+                    rather than display:none, which some bots skip, and
+                    aria-hidden + tabIndex keep it away from screen readers and
+                    keyboard users. */}
+                <input
+                  name="_hp"
+                  tabIndex={-1}
+                  aria-hidden
+                  autoComplete="off"
+                  className="pointer-events-none absolute left-[-9999px] h-0 w-0 opacity-0"
+                />
+
+                {error && (
+                  <p role="alert" className="text-sm font-medium text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                {/* `loading` both disables the button and renders the spinner. */}
+                <Button type="submit" size="lg" className="w-full" loading={sending}>
+                  {sending ? 'Sending…' : 'Send Enquiry'}
                 </Button>
               </form>
             )}

@@ -13,7 +13,7 @@ export function Testimonials() {
           center
           eyebrow="Testimonials"
           title="Investors Who Trust Us"
-          subtitle="Real stories from families and investors who found their plot with RoyalNest."
+          subtitle="Real stories from families and investors who found their plot with Royalnest."
         />
 
         <div className="mt-14 grid gap-6 lg:grid-cols-3">

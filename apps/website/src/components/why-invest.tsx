@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { SectionHeading } from './section-heading';
 import { ParallaxScene, TownshipScene } from './parallax';
 import { Icon } from './icon-map';
-import { Check, Phone, WhatsApp, Wallet, Percent } from './icons';
-import { BRAND, INVEST_REASONS, PAYMENT_PLAN, PLC_CHARGES, PRICE_TIERS } from '../lib/site-data';
+import { Phone, WhatsApp, Wallet } from './icons';
+import { BRAND, HAS_PHONE, HAS_WHATSAPP, INVEST_REASONS, PAYMENT_PLAN, PRICE_TIERS } from '../lib/site-data';
 
 /** Shared card shell: layered gradient surface that lifts and lights up on hover. */
 /**
@@ -46,8 +46,8 @@ export function WhyInvest() {
           center
           light
           eyebrow="Why Invest"
-          title="Plots at a Pre-RERA Launch Advantage"
-          subtitle="A pre-RERA launch on a corridor backed by 5,000+ acres of planned government development. Speak to an advisor for current rates and availability."
+          title="Plots at a Launch Advantage"
+          subtitle="A new launch on a corridor backed by 10,000+ acres of planned government development. Speak to an advisor for current rates and availability."
         />
 
         {/* ══ Price cards ══ */}
@@ -78,9 +78,6 @@ export function WhyInvest() {
                         {t.type}
                       </span>
                     </span>
-                    <span className="rounded-full border border-primary/25 bg-primary/[0.07] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-primary">
-                      Pre-RERA
-                    </span>
                   </div>
 
                   {/* No rate is published. Pricing moves with the launch stage, so
@@ -97,20 +94,33 @@ export function WhyInvest() {
                     </p>
 
                     <div className="mt-5 flex flex-wrap gap-2.5">
-                      <a
-                        href={BRAND.whatsapp}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/25 transition-all duration-200 hover:-translate-y-0.5"
-                      >
-                        <WhatsApp width={16} height={16} /> Enquire on WhatsApp
-                      </a>
-                      <a
-                        href={BRAND.phoneHref}
-                        className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/[0.06]"
-                      >
-                        <Phone width={16} height={16} /> Call Now
-                      </a>
+                      {HAS_WHATSAPP && (
+                        <a
+                          href={BRAND.whatsapp}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/25 transition-all duration-200 hover:-translate-y-0.5"
+                        >
+                          <WhatsApp width={16} height={16} /> Enquire on WhatsApp
+                        </a>
+                      )}
+                      {HAS_PHONE ? (
+                        <a
+                          href={BRAND.phoneHref}
+                          className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/[0.06]"
+                        >
+                          <Phone width={16} height={16} /> Call Now
+                        </a>
+                      ) : (
+                        /* With no number published, the enquiry form is the only
+                           route left — so the card must still offer one. */
+                        <a
+                          href="#contact"
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:-translate-y-0.5"
+                        >
+                          Enquire Now
+                        </a>
+                      )}
                     </div>
                   </div>
 
@@ -189,8 +199,8 @@ export function WhyInvest() {
           </div>
         </div>
 
-        {/* ══ Payment plan + PLC ══ */}
-        <div className="mt-20 grid gap-6 lg:grid-cols-[1.45fr_1fr]">
+        {/* ══ Payment plan ══ */}
+        <div className="mt-20 grid gap-6">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -243,36 +253,6 @@ export function WhyInvest() {
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className={`${cardBase} p-7 sm:p-8`}
-          >
-            <TopAccent />
-            <div className="relative">
-              <h3 className="inline-flex items-center gap-2.5 font-display text-2xl font-semibold text-white">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary ring-1 ring-primary/25">
-                  <Percent width={18} height={18} />
-                </span>
-                PLC &amp; Charges
-              </h3>
-              <p className="mt-1.5 text-xs text-white/65">Preferential Location Charges</p>
-
-              <ul className="mt-6 grid gap-3">
-                {PLC_CHARGES.map((c) => (
-                  <li
-                    key={c}
-                    className="flex items-start gap-3 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 py-3 text-sm text-white/90"
-                  >
-                    <Check width={16} height={16} className="mt-0.5 shrink-0 text-primary" />
-                    {c}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </motion.div>
         </div>
       </div>
     </ParallaxScene>

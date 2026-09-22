@@ -80,7 +80,7 @@ export function Amenities() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ══ Ten theme-based gardens ══════════════════════════════════════
+        {/* ══ Theme-based gardens ══════════════════════════════════════
             A forest-dark garden room: the botanical set piece of the page. */}
         <div className="on-forest relative mt-24 overflow-hidden rounded-3xl bg-navy p-8 text-navy-foreground shadow-cinematic sm:p-12">
           {/* Layered planting inside the panel */}
@@ -96,8 +96,10 @@ export function Amenities() {
               <span className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
                 Exclusive
               </span>
+              {/* Count derives from THEME_GARDENS so the heading can never
+                  disagree with the tiles beside it. */}
               <h3 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
-                Ten Theme-Based Gardens
+                {THEME_GARDENS.length} Theme-Based Gardens
               </h3>
               <div className="rule-leaf mt-5 max-w-[10rem]" />
               <p className="mt-5 text-white/65">

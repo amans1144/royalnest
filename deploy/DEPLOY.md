@@ -106,6 +106,48 @@ cannot know:
 | `NEXT_PUBLIC_ADMIN_PASSWORD` | The admin's sign-in is a client-side mock; the committed default is public knowledge. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Maps on the site. |
 | `ACME_EMAIL` | Only used if you ever switch the proxy to edge mode. |
+| `SMTP_PASS` | The `info@royalnestrealty.in` mailbox password. Without it the contact form still records every enquiry, but emails nobody — see below. |
+
+## Contact-form enquiries
+
+When someone submits the Quick Enquiry form, `POST /api/lead` **appends the
+enquiry to `$DATA_DIR/spb-leads.jsonl` first, then tries to email it.** The
+visitor is told it succeeded as soon as it is stored, so a broken mail relay
+costs you notification speed, never the lead.
+
+`DATA_DIR` is set by compose to `/var/lib/spbuilders` inside the website
+container, backed by the `royalnest_content` volume — the same volume as the
+published content, so `6) Backup / Restore` already covers the lead log.
+
+To turn the notification email on, set in `.env.production`:
+
+```bash
+SMTP_HOST=smtp.hostinger.com     # already the default
+SMTP_PORT=465                    # 465 implicit TLS, 587 STARTTLS — both fine
+SMTP_USER=info@royalnestrealty.in
+SMTP_PASS=<the mailbox password>
+SMTP_FROM=Royalnest Realty <info@royalnestrealty.in>
+LEAD_INBOX=info@royalnestrealty.in
+```
+
+These are runtime values, so `5) Restart` is enough — no rebuild. The mailbox
+must exist for real in hPanel → Emails; a forward-only alias cannot
+authenticate to SMTP.
+
+Reading what has come in, and why mail failed if it did:
+
+```bash
+cd /root/royalnest
+docker compose -f docker-compose.prod.yml exec website \
+  tail -n 20 /var/lib/spbuilders/spb-leads.jsonl        # latest enquiries
+docker compose -f docker-compose.prod.yml exec website \
+  wc -l /var/lib/spbuilders/spb-leads.jsonl             # total received
+docker compose -f docker-compose.prod.yml logs website | grep '\[lead\]'
+```
+
+A `[lead] SMTP is not configured` line means `SMTP_HOST`/`USER`/`PASS` are not
+all set. A `[lead] SMTP send failed` line carries the relay's own error
+(bad credentials, connection refused, sender not permitted).
 
 `PUBLISH_TOKEN` and `NEXT_PUBLIC_PUBLISH_TOKEN` **must be identical** — the
 generator sets both. If they drift, every publish from the admin returns 401.

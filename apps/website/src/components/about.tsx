@@ -26,7 +26,7 @@ export function About() {
           <div className="overflow-hidden rounded-3xl shadow-2xl shadow-navy/15">
             <img
               src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1000&q=80"
-              alt="RoyalNest Realty"
+              alt="Royalnest Realty"
               className="h-[420px] w-full object-cover"
             />
           </div>
@@ -48,13 +48,13 @@ export function About() {
           transition={{ duration: 0.6 }}
         >
           <span className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-            About RoyalNest
+            About Royalnest
           </span>
           <h2 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">
             Building Trust in Lucknow Since {BRAND.since}
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            RoyalNest Realty is a RERA-focused plotted-development advisor. For over a decade we
+            Royalnest Realty is a RERA-focused plotted-development advisor. For over a decade we
             have helped families and investors own clean-title land in Lucknow&apos;s most promising
             corridors — with transparency at the heart of everything we do.
           </p>

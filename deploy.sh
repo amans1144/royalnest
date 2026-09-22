@@ -137,6 +137,7 @@ do_configure() {
   echo "    NEXT_PUBLIC_SITE_URL                       — baked in at BUILD time (canonical/sitemap/robots)"
   echo "    NEXT_PUBLIC_ADMIN_PASSWORD                 — the committed default is not a password"
   echo "    DB_PASSWORD · REDIS_PASSWORD · JWT_*       — (c) generates all of these"
+  echo "    SMTP_PASS                                  — else contact-form enquiries are logged but never emailed"
   while true; do
     echo ""
     echo -e "${CYAN}  Setup / Configure${NC}"

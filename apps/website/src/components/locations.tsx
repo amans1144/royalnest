@@ -30,7 +30,7 @@ export function Locations() {
           center
           eyebrow="Location"
           title="At the Centre of Lucknow’s Next Chapter"
-          subtitle="Nizampur, Gosaiganj–Satrikh Road, on the Lucknow–Sultanpur NH-731 corridor, ringed by planned government townships."
+          subtitle="Nizampur, Gosaiganj–Barabanki Road, on the Lucknow–Sultanpur NH-731 corridor, ringed by planned government townships."
         />
 
         {/* ── Address + drive-time stats ── */}
@@ -53,9 +53,11 @@ export function Locations() {
             </p>
             <div className="mt-5 grid gap-2.5 text-sm">
               {[
-                'Adjoining the 4-lane Gosaiganj–Satrikh NH-230',
+                /* Kept in step with LOCATION_STATS above — this card used to say
+                   "15–20 minutes" while the stat beside it said 20. */
+                'Adjoining the 4-lane, 80 m Gosaiganj–Satrikh NH-230',
                 'Opposite the LDA residential zone',
-                '15–20 minutes from Shaheed Path today',
+                '20 minutes from Shaheed Path today',
               ].map((t) => (
                 <div key={t} className="flex items-start gap-2.5">
                   <Check width={16} height={16} className="mt-0.5 shrink-0 text-primary" />
@@ -70,7 +72,10 @@ export function Locations() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.5, delay: 0.08 }}
-            className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4"
+            /* Three stats now, not four. Stacked on the narrowest screens
+               because "1,000+ ac" cannot fit a third of 390px without
+               wrapping, then an even row of three from sm up. */
+            className="grid grid-cols-1 gap-4 sm:grid-cols-3"
           >
             {LOCATION_STATS.map((s) => (
               <div

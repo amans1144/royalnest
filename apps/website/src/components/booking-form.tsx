@@ -31,7 +31,7 @@ export function BookingForm() {
                   Book Your Plot Visit
                 </h3>
                 <p className="mt-3 max-w-sm text-white/70">
-                  Tell us your budget and preferred corridor. A RoyalNest advisor will call within
+                  Tell us your budget and preferred corridor. A Royalnest advisor will call within
                   24 hours to arrange a complimentary, no-obligation site visit.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-sm text-white/80">
@@ -118,7 +118,7 @@ export function BookingForm() {
                   <label className="flex items-start gap-2.5 text-xs text-muted-foreground">
                     <input required type="checkbox" className="mt-0.5 accent-[hsl(var(--primary))]" />
                     <span>
-                      I agree to be contacted by RoyalNest Realty and accept the privacy policy.
+                      I agree to be contacted by Royalnest Realty and accept the privacy policy.
                     </span>
                   </label>
 

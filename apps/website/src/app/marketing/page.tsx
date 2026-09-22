@@ -4,7 +4,7 @@ import { Navbar } from '../../components/navbar';
 import { Footer } from '../../components/footer';
 import { FloatingActions } from '../../components/floating-actions';
 import { MarketingBrowser } from '../../components/marketing-browser';
-import { BRAND, PROJECT } from '../../lib/site-data';
+import { BRAND, HAS_PHONE, HAS_WHATSAPP, PROJECT } from '../../lib/site-data';
 import { OG_IMAGE, breadcrumbJsonLd, jsonLdScript } from '../../lib/seo';
 
 const DESCRIPTION = `Download brochures, site plans and walkthrough videos for ${PROJECT.name}, ${PROJECT.locality}, ${PROJECT.city}.`;
@@ -76,20 +76,31 @@ export default function MarketingPage() {
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href={BRAND.whatsapp}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="rounded-xl bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/20 transition-opacity hover:opacity-90"
-              >
-                Get it on WhatsApp
-              </a>
-              <a
-                href={BRAND.phoneHref}
-                className="rounded-xl border border-white/25 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-              >
-                Call {BRAND.phone}
-              </a>
+              {HAS_WHATSAPP && (
+                <a
+                  href={BRAND.whatsapp}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-xl bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/20 transition-opacity hover:opacity-90"
+                >
+                  Get it on WhatsApp
+                </a>
+              )}
+              {HAS_PHONE ? (
+                <a
+                  href={BRAND.phoneHref}
+                  className="rounded-xl border border-white/25 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                >
+                  Call {BRAND.phone}
+                </a>
+              ) : (
+                <a
+                  href={`mailto:${BRAND.email}`}
+                  className="rounded-xl border border-white/25 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                >
+                  Email {BRAND.email}
+                </a>
+              )}
             </div>
           </div>
         </section>

@@ -11,7 +11,7 @@ export function WhyChooseUs() {
       <div className="container-x">
         <SectionHeading
           center
-          eyebrow="Why Choose RoyalNest"
+          eyebrow="Why Choose Royalnest"
           title="Trust, Built Into Every Plot"
           subtitle="From title verification to registry, we protect your investment at every step."
         />

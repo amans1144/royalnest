@@ -41,6 +41,21 @@ export async function writeStore(file: string, data: unknown): Promise<void> {
   }
 }
 
+/**
+ * Append one JSON record as a line (JSONL).
+ *
+ * Deliberately not read-modify-write like writeStore: enquiries arrive from the
+ * public internet and two overlapping submissions would make a read/push/write
+ * pair lose one of them. A single O_APPEND write of a line shorter than
+ * PIPE_BUF is not interleaved, so concurrent submissions can only ever
+ * interleave whole lines. The file is also append-only, which is what you want
+ * for a lead log — nothing already captured is ever rewritten.
+ */
+export async function appendStore(file: string, record: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.appendFile(file, JSON.stringify(record) + '\n', 'utf8');
+}
+
 /* ── Publish authorisation ────────────────────────────────────────────────
    These endpoints rewrite what the public site shows, so on the open internet
    they cannot stay unauthenticated. The admin sends PUBLISH_TOKEN as a header;

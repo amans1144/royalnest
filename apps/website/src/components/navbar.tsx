@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@spb/ui';
 import { ThemeToggle } from './theme-toggle';
 import { Menu, X, Phone, WhatsApp } from './icons';
-import { BRAND, NAV_LINKS } from '../lib/site-data';
+import { BRAND, HAS_PHONE, HAS_WHATSAPP, NAV_LINKS } from '../lib/site-data';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -40,7 +40,7 @@ export function Navbar() {
           >
             <Image
               src="/royal-nest-logo.png"
-              alt="RoyalNest Realty"
+              alt="Royalnest Realty"
               width={110}
               height={110}
               sizes="110px"
@@ -54,7 +54,7 @@ export function Navbar() {
                 scrolled ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl lg:text-3xl'
               } ${scrolled ? 'text-foreground' : 'text-white drop-shadow'}`}
             >
-              RoyalNest
+              Royalnest
             </span>
             <span
               className={`font-semibold uppercase tracking-[0.28em] transition-all duration-300 ${
@@ -85,25 +85,29 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <a href={BRAND.phoneHref} className="hidden sm:block">
-            <Button
-              size="sm"
-              variant="outline"
-              className={
-                scrolled ? '' : 'border-white/40 text-white hover:bg-white/10 hover:text-white'
-              }
-            >
-              <Phone width={16} height={16} /> Call Now
-            </Button>
-          </a>
-          <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="hidden md:block">
-            <Button
-              size="sm"
-              className="bg-[#25D366] text-white shadow-[#25D366]/30 hover:bg-[#1fb457]"
-            >
-              <WhatsApp width={16} height={16} /> WhatsApp
-            </Button>
-          </a>
+          {HAS_PHONE && (
+            <a href={BRAND.phoneHref} className="hidden sm:block">
+              <Button
+                size="sm"
+                variant="outline"
+                className={
+                  scrolled ? '' : 'border-white/40 text-white hover:bg-white/10 hover:text-white'
+                }
+              >
+                <Phone width={16} height={16} /> Call Now
+              </Button>
+            </a>
+          )}
+          {HAS_WHATSAPP && (
+            <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="hidden md:block">
+              <Button
+                size="sm"
+                className="bg-[#25D366] text-white shadow-[#25D366]/30 hover:bg-[#1fb457]"
+              >
+                <WhatsApp width={16} height={16} /> WhatsApp
+              </Button>
+            </a>
+          )}
           <button
             className={`grid h-10 w-10 place-items-center rounded-full xl:hidden ${
               scrolled ? 'text-foreground' : 'text-white'
@@ -130,18 +134,30 @@ export function Navbar() {
                 </a>
               </li>
             ))}
-            <li className="mt-2 grid grid-cols-2 gap-2">
-              <a href={BRAND.phoneHref}>
-                <Button size="sm" variant="outline" className="w-full">
-                  <Phone width={16} height={16} /> Call
-                </Button>
-              </a>
-              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer">
-                <Button size="sm" className="w-full bg-[#25D366] text-white hover:bg-[#1fb457]">
-                  <WhatsApp width={16} height={16} /> WhatsApp
-                </Button>
-              </a>
-            </li>
+            {/* Drops to one column when only one route is available, and the
+                whole row disappears when neither is. */}
+            {(HAS_PHONE || HAS_WHATSAPP) && (
+              <li
+                className={`mt-2 grid gap-2 ${
+                  HAS_PHONE && HAS_WHATSAPP ? 'grid-cols-2' : 'grid-cols-1'
+                }`}
+              >
+                {HAS_PHONE && (
+                  <a href={BRAND.phoneHref}>
+                    <Button size="sm" variant="outline" className="w-full">
+                      <Phone width={16} height={16} /> Call
+                    </Button>
+                  </a>
+                )}
+                {HAS_WHATSAPP && (
+                  <a href={BRAND.whatsapp} target="_blank" rel="noreferrer">
+                    <Button size="sm" className="w-full bg-[#25D366] text-white hover:bg-[#1fb457]">
+                      <WhatsApp width={16} height={16} /> WhatsApp
+                    </Button>
+                  </a>
+                )}
+              </li>
+            )}
           </ul>
         </div>
       )}

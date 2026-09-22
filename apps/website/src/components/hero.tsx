@@ -14,7 +14,7 @@ import {
   SunGlow,
 } from './parallax';
 import { ArrowRight, MapPin, WhatsApp, Sparkle } from './icons';
-import { BRAND, PROJECT, HERO_HIGHLIGHTS } from '../lib/site-data';
+import { BRAND, HAS_WHATSAPP, PROJECT, HERO_HIGHLIGHTS } from '../lib/site-data';
 
 export function Hero() {
   return (
@@ -126,14 +126,16 @@ export function Hero() {
                 <MapPin width={16} height={16} /> View Plot Map
               </Button>
             </a>
-            <a href={BRAND.whatsapp} target="_blank" rel="noreferrer noopener">
-              <Button
-                variant="outline"
-                className="border-white/40 text-white hover:bg-white/10 hover:text-white"
-              >
-                <WhatsApp width={16} height={16} /> Enquire Now
-              </Button>
-            </a>
+            {HAS_WHATSAPP && (
+              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer noopener">
+                <Button
+                  variant="outline"
+                  className="border-white/40 text-white hover:bg-white/10 hover:text-white"
+                >
+                  <WhatsApp width={16} height={16} /> Enquire Now
+                </Button>
+              </a>
+            )}
           </div>
         </motion.div>
 

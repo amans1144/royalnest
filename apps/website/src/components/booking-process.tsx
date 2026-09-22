@@ -12,7 +12,7 @@ export function BookingProcess() {
           center
           eyebrow="How It Works"
           title="Your Journey to Ownership"
-          subtitle="A simple, transparent four-step process — with a RoyalNest advisor beside you throughout."
+          subtitle="A simple, transparent four-step process — with a Royalnest advisor beside you throughout."
         />
 
         <div className="relative mt-16 grid gap-8 md:grid-cols-4">

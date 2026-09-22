@@ -16,7 +16,7 @@ export function Faq() {
           center
           eyebrow="FAQs"
           title="Questions, Answered"
-          subtitle="Everything you need to know before booking your plot with RoyalNest."
+          subtitle="Everything you need to know before booking your plot with Royalnest."
         />
 
         <div className="mt-12 grid gap-3">

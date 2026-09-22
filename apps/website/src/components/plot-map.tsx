@@ -11,7 +11,7 @@ import {
 } from '@spb/types';
 import { pointInPolygon, polygonCentroid } from '@spb/utils';
 import { projects } from '../lib/mock-data';
-import { BRAND } from '../lib/site-data';
+import { BRAND, HAS_PHONE, HAS_WHATSAPP } from '../lib/site-data';
 import { useMapStore } from '../lib/map-store';
 import { SectionHeading } from './section-heading';
 import { ParallaxScene, AmenitiesScene } from './parallax';
@@ -258,14 +258,16 @@ export function PlotMap() {
               >
                 Enquire About Availability
               </a>
-              <a
-                href={BRAND.whatsapp}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="rounded-xl border border-primary/40 px-5 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:bg-primary/[0.06]"
-              >
-                Ask on WhatsApp
-              </a>
+              {HAS_WHATSAPP && (
+                <a
+                  href={BRAND.whatsapp}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-xl border border-primary/40 px-5 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:bg-primary/[0.06]"
+                >
+                  Ask on WhatsApp
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -451,20 +453,31 @@ export function PlotMap() {
                   <Row label="Rate" value="On request" highlight />
                 </dl>
                 <div className="mt-6 space-y-2">
-                  <a
-                    href={`${BRAND.whatsapp}?text=${encodeURIComponent(`Hi, I'd like details for plot ${selected.number} at ${projectName}.`)}`}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                  >
-                    <WhatsApp width={16} height={16} /> Enquire on WhatsApp
-                  </a>
-                  <a
-                    href={BRAND.phoneHref}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 py-3 text-sm font-medium transition-colors hover:bg-primary/[0.06]"
-                  >
-                    <Phone width={16} height={16} /> Call {BRAND.phone}
-                  </a>
+                  {HAS_WHATSAPP && (
+                    <a
+                      href={`${BRAND.whatsapp}?text=${encodeURIComponent(`Hi, I'd like details for plot ${selected.number} at ${projectName}.`)}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    >
+                      <WhatsApp width={16} height={16} /> Enquire on WhatsApp
+                    </a>
+                  )}
+                  {HAS_PHONE ? (
+                    <a
+                      href={BRAND.phoneHref}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 py-3 text-sm font-medium transition-colors hover:bg-primary/[0.06]"
+                    >
+                      <Phone width={16} height={16} /> Call {BRAND.phone}
+                    </a>
+                  ) : (
+                    <a
+                      href="#contact"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      Enquire About This Plot
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (

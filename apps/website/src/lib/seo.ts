@@ -48,7 +48,9 @@ export function organizationJsonLd() {
     logo: absolute('/royal-nest-logo.png'),
     image: absolute(OG_IMAGE),
     description: BRAND.tagline,
-    telephone: BRAND.phone,
+    // Omitted rather than emitted empty while no number is published —
+    // structured data must not assert a contact route that does not exist.
+    ...(BRAND.phone ? { telephone: BRAND.phone } : {}),
     email: BRAND.email,
     address: {
       '@type': 'PostalAddress',

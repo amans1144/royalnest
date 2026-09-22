@@ -4,7 +4,7 @@ import { BRAND, PROJECT } from '../../lib/site-data';
 
 /**
  * ⚠️ REVIEW BEFORE LAUNCH — standard boilerplate, not reviewed by a lawyer.
- * The disclaimer section matters most here: the site markets a pre-RERA launch,
+ * The disclaimer section matters most here: the site markets a new launch,
  * so have counsel confirm the wording satisfies RERA advertising rules and that
  * the registration number shown in the footer is the correct one to publish.
  */

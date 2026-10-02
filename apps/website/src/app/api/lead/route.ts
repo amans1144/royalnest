@@ -2,26 +2,26 @@ import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { INTEREST_OPTIONS, BRAND, PROJECT } from '../../../lib/site-data';
-import { appendStore, storePath } from '../../../lib/content-store';
+import { CORS, denyAdminRead, storageFailure } from '../../../lib/content-store';
+import { insertEnquiry, listEnquiries, markEnquiryMailed } from '../../../lib/db';
 
 /**
  * Enquiry intake for the website contact form.
  *
  *   POST /api/lead { name, phone, email?, interest, message?, _hp? } -> { ok, mailed }
  *
- * Order of operations matters: the enquiry is written to disk BEFORE the email
- * is attempted, and the response is ok as soon as it is stored. A prospective
- * buyer who filled in the form has reached us; if the SMTP relay is down we
- * must not tell them otherwise and we must not drop the lead. The stored log is
- * the system of record, email is the notification on top of it.
+ * Order of operations matters: the enquiry is committed to Postgres
+ * (site.enquiries) BEFORE the email is attempted. A prospective buyer who
+ * filled in the form has reached us; if the SMTP relay is down we must not
+ * tell them otherwise and we must not drop the lead. The table is the system of
+ * record, email is the notification on top of it — and whether that email went
+ * out is recorded on the row.
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Where enquiry notifications are sent. */
 const TO = process.env.LEAD_INBOX?.trim() || 'info@royalnestrealty.in';
-
-const LOG = storePath('spb-leads.jsonl');
 
 /* ── Validation ───────────────────────────────────────────────────────────
    Phone arrives as free text ("+91 99990 00000", "09999-000000"), so it is
@@ -55,8 +55,8 @@ const schema = z.object({
 
 /* ── Rate limiting ────────────────────────────────────────────────────────
    A public unauthenticated POST endpoint will be found by spam bots. This is
-   per-process and in memory, which is the right scope here: DEPLOYMENT.md runs
-   a single systemd website service, so there is nothing to share state with.
+   per-process and in memory, which is the right scope here: there is one
+   website container, so there is nothing to share state with.
    It is a spam brake, not a security control. */
 
 const WINDOW_MS = 10 * 60 * 1000;
@@ -108,7 +108,11 @@ const mailConfigured = !!(SMTP_HOST && SMTP_USER && SMTP_PASS);
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-type Lead = z.infer<typeof schema> & { receivedAt: string; ip: string; userAgent: string };
+type Lead = Omit<z.infer<typeof schema>, '_hp'> & {
+  receivedAt: string;
+  ip: string;
+  userAgent: string;
+};
 
 function renderMail(lead: Lead) {
   const rows: [string, string][] = [
@@ -158,12 +162,49 @@ async function sendMail(lead: Lead): Promise<boolean> {
     });
     return true;
   } catch (err) {
-    console.error('[lead] SMTP send failed — enquiry is stored in', LOG, err);
+    console.error('[lead] SMTP send failed — enquiry is stored in site.enquiries', err);
     return false;
   }
 }
 
-/* ── Handler ──────────────────────────────────────────────────────────────── */
+/* ── Handlers ─────────────────────────────────────────────────────────────── */
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
+/**
+ * Enquiry log for the admin console. Token-protected — unlike the other GET
+ * endpoints, what this returns is customers' personal data, not site content.
+ *
+ *   GET /api/lead?limit=200 -> { ok, total, returned, leads }
+ *
+ * Newest first, because that is the order anybody actually reads them in.
+ */
+export async function GET(req: Request) {
+  const denied = denyAdminRead(req);
+  if (denied) {
+    return NextResponse.json(
+      { ok: false, error: denied.error },
+      { status: denied.status, headers: CORS },
+    );
+  }
+
+  // Capped so one very long-running site cannot return a 20 MB JSON blob.
+  const url = new URL(req.url);
+  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 500, 1), 2000);
+
+  try {
+    const { total, rows: leads } = await listEnquiries(limit);
+    return NextResponse.json(
+      { ok: true, total, returned: leads.length, leads },
+      // Never cached, and never stored by an intermediary: this is personal data.
+      { headers: { ...CORS, 'Cache-Control': 'no-store, private' } },
+    );
+  } catch (err) {
+    return storageFailure(err);
+  }
+}
 
 export async function POST(req: Request) {
   const ip = clientIp(req);
@@ -195,26 +236,24 @@ export async function POST(req: Request) {
 
   // `_hp` is spam plumbing, not part of the enquiry — keep it out of the log.
   const { _hp: _ignored, ...fields } = parsed.data;
-  const lead: Lead = {
-    ...fields,
-    receivedAt: new Date().toISOString(),
-    ip,
-    userAgent: req.headers.get('user-agent')?.slice(0, 300) ?? '',
-  };
+  const userAgent = req.headers.get('user-agent')?.slice(0, 300) ?? '';
 
   recordHit(ip);
 
+  let stored: { id: string; receivedAt: string };
   try {
-    await appendStore(LOG, lead);
+    stored = await insertEnquiry({ ...fields, ip, userAgent });
   } catch (err) {
     // Nothing is captured, so this is the one case the visitor must be told
     // about — otherwise they would walk away believing they had reached us.
-    console.error('[lead] could not write the enquiry log', err);
+    console.error('[lead] could not store the enquiry', err);
     return NextResponse.json(
       { ok: false, error: 'We could not record your enquiry. Please call or WhatsApp us.' },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ ok: true, mailed: await sendMail(lead) });
+  const mailed = await sendMail({ ...fields, ip, userAgent, receivedAt: stored.receivedAt });
+  if (mailed) await markEnquiryMailed(stored.id);
+  return NextResponse.json({ ok: true, mailed });
 }

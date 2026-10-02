@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { isGalleryCategory, type GalleryImage } from '@spb/types';
-import { CORS, denyPublish, readStore, storePath, writeStore } from '../../../lib/content-store';
+import { CORS, denyPublish, storageFailure } from '../../../lib/content-store';
+import { getContent, putContent } from '../../../lib/db';
 
 /**
  * Shared gallery store so the admin's Media Library can publish the photo set
- * the public gallery renders. Persisted under DATA_DIR — see lib/content-store.
- * Replaced by NestJS + Postgres + S3 later.
+ * the public gallery renders. Stored in Postgres (site.content) — see lib/db.
  *
  *   GET  /api/gallery -> { images, updatedAt }
  *   POST /api/gallery { images } -> { ok, count }
@@ -13,15 +13,13 @@ import { CORS, denyPublish, readStore, storePath, writeStore } from '../../../li
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const FILE = storePath('spb-published-gallery.json');
-
 type Store = { images: GalleryImage[]; updatedAt: string | null };
 
 const EMPTY: Store = { images: [], updatedAt: null };
 
 async function read(): Promise<Store> {
-  const parsed = await readStore<Store>(FILE, EMPTY);
-  return Array.isArray(parsed.images) ? parsed : EMPTY;
+  const row = await getContent<GalleryImage[]>('gallery');
+  return row && Array.isArray(row.value) ? { images: row.value, updatedAt: row.updatedAt } : EMPTY;
 }
 
 /** Keep only well-formed entries so a bad publish can't break the gallery. */
@@ -47,7 +45,11 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return NextResponse.json(await read(), { headers: CORS });
+  try {
+    return NextResponse.json(await read(), { headers: CORS });
+  } catch (err) {
+    return storageFailure(err, EMPTY);
+  }
 }
 
 export async function POST(req: Request) {
@@ -58,16 +60,20 @@ export async function POST(req: Request) {
       { status: denied.status, headers: CORS },
     );
   }
+  let body: { images?: unknown };
   try {
-    const body = (await req.json()) as { images?: unknown };
-    const images = sanitise(body.images);
-    const store: Store = { images, updatedAt: new Date().toISOString() };
-    await writeStore(FILE, store);
-    return NextResponse.json({ ok: true, count: images.length }, { headers: CORS });
+    body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json(
-      { ok: false, error: 'Failed to save gallery' },
-      { status: 500, headers: CORS },
+      { ok: false, error: 'Malformed request body.' },
+      { status: 400, headers: CORS },
     );
+  }
+  try {
+    const images = sanitise(body.images);
+    await putContent('gallery', images);
+    return NextResponse.json({ ok: true, count: images.length }, { headers: CORS });
+  } catch (err) {
+    return storageFailure(err);
   }
 }

@@ -5,6 +5,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { getSession, signOut } from '../lib/auth';
 import { logActivity } from '../lib/activity';
+import { LAYOUT_PREFIX } from '../lib/layouts';
+import { PROJECTS_KEY } from '../lib/projects';
+import { anySharedError, hydrateSharedState } from '../lib/shared-state';
+import { GALLERY_KEY } from '../lib/gallery';
+import { MARKETING_KEY } from '../lib/marketing';
+import { ACTIVITY_KEY } from '../lib/activity';
 import { ThemeToggle } from './theme-toggle';
 import {
   Bell,
@@ -14,6 +20,7 @@ import {
   Grid,
   Image,
   Logout,
+  Mail,
   Map,
   Megaphone,
   Menu,
@@ -29,6 +36,10 @@ const nav = [
   { label: 'Projects', href: '/projects', icon: Building },
   { label: 'Plot Inventory', href: '/plots', icon: Map },
   { label: 'Bookings', href: '/bookings', icon: Receipt },
+  // Real submissions from the public site's contact form (read-only; the
+  // website owns them). Sits above the CRM board, which is the manual
+  // pipeline on top.
+  { label: 'Enquiries', href: '/enquiries', icon: Mail },
   { label: 'Leads / CRM', href: '/leads', icon: Users },
   { label: 'Customers', href: '/customers', icon: User },
   { label: 'Reports', href: '/reports', icon: Chart },
@@ -45,6 +56,8 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
   const [name, setName] = useState('Super Admin');
   const [open, setOpen] = useState(false);
 
+  const [stateWarning, setStateWarning] = useState<string | null>(null);
+
   useEffect(() => {
     const session = getSession();
     if (!session) {
@@ -52,13 +65,31 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
       return;
     }
     setName(session.name);
-    setReady(true);
+
+    /* Shared state is pulled from the website BEFORE any screen renders.
+       Projects, layouts and the rest are read synchronously all over the panel,
+       so a screen that painted first would read an empty mirror and look as if
+       the data had been lost. Hydration failing is not fatal — the panel still
+       opens on this device's cached copy — but it is surfaced, because an
+       operator must know when their edits are not being shared. */
+    /* Only the documents read SYNCHRONOUSLY by screens are pre-fetched here.
+       Leads and bookings go through usePersistentList, which loads its own key
+       on mount — listing them again would just double the requests. */
+    void hydrateSharedState(PROJECTS_KEY, LAYOUT_PREFIX, [
+      GALLERY_KEY,
+      MARKETING_KEY,
+      ACTIVITY_KEY,
+    ]).then(() => {
+      setStateWarning(anySharedError());
+      setReady(true);
+    });
   }, [router]);
 
   if (!ready) {
     return (
-      <div className="grid min-h-screen place-items-center">
-        <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="grid min-h-screen place-items-center gap-4 text-center">
+        <span className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Loading shared data…</p>
       </div>
     );
   }
@@ -82,7 +113,7 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
           <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-navy">
             <NextImage
               src="/royal-nest-logo.png"
-              alt="RoyalNest Realty"
+              alt="Royalnest Realty"
               width={32}
               height={32}
               className="h-7 w-7 object-contain"
@@ -90,7 +121,7 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
             />
           </span>
           <span className="flex flex-col leading-none">
-            <span className="font-semibold">RoyalNest</span>
+            <span className="font-semibold">Royalnest</span>
             <span className="text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-primary">
               Realty Admin
             </span>
@@ -165,7 +196,21 @@ export function Shell({ children, title }: { children: React.ReactNode; title: s
           </div>
         </header>
 
-        <main className="p-5 sm:p-8">{children}</main>
+        <main className="p-5 sm:p-8">
+          {/* Shown when shared state could not be reached. Without this the
+              panel looks completely normal while every edit is going nowhere
+              but this one browser — the exact failure that made a traced map
+              invisible on a second laptop. */}
+          {stateWarning && (
+            <div className="mb-5 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 text-sm">
+              <p className="font-medium text-amber-700 dark:text-amber-400">
+                Working offline — changes are not being shared with other admins.
+              </p>
+              <p className="mt-1 text-muted-foreground">{stateWarning}</p>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

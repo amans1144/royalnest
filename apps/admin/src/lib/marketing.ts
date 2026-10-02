@@ -9,10 +9,11 @@ import {
 import { WEBSITE_URL } from './layouts';
 import { compressImage } from './gallery';
 import { publishError, publishHeaders } from './publish';
+import { getShared, setShared } from './shared-state';
 
 /**
  * Store for the Marketing Material page. Same shape as the gallery store:
- * the admin's working copy lives in localStorage and "publish" pushes it to
+ * the admin's working copy lives on the website (shared) and "publish" pushes it to
  * the public site's /api/marketing endpoint. Swapped for S3 uploads when the
  * API lands.
  *
@@ -29,7 +30,7 @@ export const MAX_PDF_BYTES = 2 * 1024 * 1024;
 export function readMarketing(): MarketingItem[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(MARKETING_KEY);
+    const raw = JSON.stringify(getShared<unknown[] | null>(MARKETING_KEY, null));
     const list = raw ? (JSON.parse(raw) as MarketingItem[]) : [];
     return Array.isArray(list) ? list : [];
   } catch {
@@ -39,7 +40,7 @@ export function readMarketing(): MarketingItem[] {
 
 export function writeMarketing(items: MarketingItem[]): { ok: boolean; error?: string } {
   try {
-    localStorage.setItem(MARKETING_KEY, JSON.stringify(items));
+    setShared(MARKETING_KEY, items);
     return { ok: true };
   } catch {
     return {

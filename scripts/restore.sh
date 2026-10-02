@@ -33,17 +33,23 @@ restore_content() {
 restore_db() {
   local f; f="$(pick "$BACKUP_DIR/db_*.sql.gz")" || return
   [ -f "${f}.sha256" ] && { sha256sum -c "${f}.sha256" >/dev/null 2>&1 && log "checksum OK" || { err "CHECKSUM MISMATCH — refusing."; return 1; }; }
-  warn "This DROPS and recreates the ${DB_NAME:-spbuilders} database."
+  warn "This REPLACES the ${DB_NAME:-spbuilders} database — all site content, admin data and enquiries."
   confirm "yes restore" || { log "Cancelled."; return; }
   bash "$(dirname "${BASH_SOURCE[0]}")/backup.sh" pre-restore
   step "Restoring $(basename "$f")"
+  # One transaction, stop at the first error: a dump that cannot apply cleanly
+  # (e.g. an old one taken without --clean) rolls back and leaves the live
+  # database exactly as it was, instead of half-restored.
   gzip -dc "$f" | COMPOSE exec -T -e PGPASSWORD="${DB_PASSWORD:-}" postgres \
-    psql -U "${DB_USERNAME:-spb}" -d "${DB_NAME:-spbuilders}" >/dev/null \
-    && log "Database restored." || err "Restore FAILED"
+    psql -v ON_ERROR_STOP=1 --single-transaction -q \
+      -U "${DB_USERNAME:-spb}" -d "${DB_NAME:-spbuilders}" >/dev/null \
+    && log "Database restored." \
+    || { err "Restore FAILED — nothing was changed."; return 1; }
 }
 
 echo ""
-echo "  a) Restore published content   b) Restore database   c) List backups   0) Back"
+echo "  a) Restore legacy JSON content volume   b) Restore database (site content + enquiries)"
+echo "  c) List backups   0) Back"
 printf "  Choose: "; c=""; read -r c < /dev/tty 2>/dev/null || true
 case "$c" in
   a) restore_content ;;

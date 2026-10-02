@@ -14,7 +14,16 @@ import {
 import { pointInPolygon, polygonCentroid, snapToGrid } from '@spb/utils';
 import { formatINR } from '../lib/mock';
 import { projectSelectOptions, SEED_OPTIONS } from '../lib/projects';
-import { LAYOUT_PREFIX, WEBSITE_API, WEBSITE_URL } from '../lib/layouts';
+import {
+  LAYOUT_PREFIX,
+  WEBSITE_API,
+  WEBSITE_URL,
+  readLayout,
+  writeLayout,
+  realignPoints,
+  type LayoutImage as StoredLayoutImage,
+} from '../lib/layouts';
+import { ensureShared } from '../lib/shared-state';
 import { diffFields, logActivity } from '../lib/activity';
 import { publishError, publishHeaders } from '../lib/publish';
 
@@ -38,18 +47,14 @@ interface EditorPlot {
   corner?: boolean;
   wideRoad?: boolean;
 }
-interface LayoutImage {
-  src: string;
-  width: number;
-  height: number;
-  name: string;
-}
+/* The shared type is the single definition — a local duplicate with a
+   required `name` is what made the store and the editor disagree. */
+type LayoutImage = StoredLayoutImage;
 
-type Tool = 'select' | 'polygon' | 'rect' | 'pan' | 'crop';
+type Tool = 'select' | 'polygon' | 'rect' | 'pan' | 'crop' | 'realign';
 const STATUSES: PlotStatus[] = ['AVAILABLE', 'RESERVED', 'BOOKED', 'SOLD', 'BLOCKED'];
 const FACINGS = ['East', 'West', 'North', 'South', 'North-East', 'North-West', 'South-East', 'South-West'];
 // Storage key + publish endpoint are shared with Plot Inventory (lib/layouts).
-const STORAGE_PREFIX = LAYOUT_PREFIX;
 const uid = () => `plot_${Math.random().toString(36).slice(2, 9)}`;
 
 // ── PDF / image loading ──────────────────────────────────────────────────────
@@ -108,6 +113,13 @@ export function LayoutEditor() {
   const [image, setImage] = useState<LayoutImage | null>(null);
   const [plots, setPlots] = useState<EditorPlot[]>([]);
   const [tool, setTool] = useState<Tool>('select');
+  /**
+   * Re-align picks: alternating "where this landmark IS" and "where it SHOULD
+   * be", twice. Two such pairs define a similarity transform (scale, rotation,
+   * translation) — the exact class of difference between two renders of the
+   * same site plan, which is what used to force re-tracing every plot.
+   */
+  const [align, setAlign] = useState<Pt[]>([]);
   const [draft, setDraft] = useState<Pt[]>([]);
   const [rectPreview, setRectPreview] = useState<{ a: Pt; b: Pt } | null>(null);
   const [cropRect, setCropRect] = useState<{ a: Pt; b: Pt } | null>(null);
@@ -269,31 +281,29 @@ export function LayoutEditor() {
     setDraft([]);
     history.current = [];
     future.current = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_PREFIX + project);
-      const saved = raw ? JSON.parse(raw) : null;
-      setImage(saved?.image ?? null);
-      setPlots(Array.isArray(saved?.plots) ? saved.plots : []);
-    } catch {
-      setImage(null);
-      setPlots([]);
-    }
+    /* Loads through lib/layouts rather than touching localStorage directly.
+       That is what makes a traced map visible to every admin, and it is where
+       stored fractions are converted back into the pixel space this editor
+       works in. `ensureShared` covers a project that was created after the
+       panel hydrated, or opened straight from a URL. */
+    let stale = false;
+    void ensureShared(LAYOUT_PREFIX + project).then(() => {
+      if (stale) return;
+      const saved = readLayout(project);
+      setImage(saved.image);
+      setPlots(saved.plots as EditorPlot[]);
+    });
+    return () => {
+      stale = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
 
   const persist = useCallback(
     (img: LayoutImage | null, pl: EditorPlot[]) => {
-      const key = STORAGE_PREFIX + project;
-      try {
-        localStorage.setItem(key, JSON.stringify({ image: img, plots: pl }));
-      } catch {
-        flash('Layout is large — saved plots only (image kept in memory).');
-        try {
-          localStorage.setItem(key, JSON.stringify({ image: null, plots: pl }));
-        } catch {
-          /* quota */
-        }
-      }
+      // Saves to the website, shared with every admin, and converted to
+      // resolution-independent fractions on the way out (see lib/layouts).
+      writeLayout(project, { image: img, plots: pl });
     },
     [project],
   );
@@ -500,11 +510,39 @@ export function LayoutEditor() {
     if (tool !== 'crop') setCropRect(null);
   }, [tool]);
 
+  // Same for a half-finished re-alignment — stale picks would combine with new
+  // ones into a nonsense transform.
+  useEffect(() => {
+    if (tool !== 'realign') setAlign([]);
+  }, [tool]);
+
   // ── pointer handlers ──
   const onPointerDown = (e: React.PointerEvent) => {
     if (preview) return;
     const w = toWorld(e.clientX, e.clientY);
     svgRef.current?.setPointerCapture(e.pointerId);
+
+    if (tool === 'realign') {
+      const picks = [...align, w];
+      if (picks.length < 4) {
+        setAlign(picks);
+        const next = ['', 'now click where it SHOULD be', 'pick a SECOND landmark', 'click where that one SHOULD be'][picks.length];
+        flash(`Point ${picks.length} of 4 — ${next}.`);
+        return;
+      }
+      // Fourth pick completes the pair set: from = picks 0 and 2, to = 1 and 3.
+      const moved = plots.map((pl) => ({
+        ...pl,
+        points: realignPoints(pl.points, [picks[0]!, picks[2]!], [picks[1]!, picks[3]!]),
+      }));
+      snapshot();
+      setPlots(moved);
+      persist(image, moved);
+      setAlign([]);
+      setTool('select');
+      flash(`Re-aligned ${moved.length} plot${moved.length === 1 ? '' : 's'} ✓`);
+      return;
+    }
 
     if (tool === 'polygon') {
       if (draft.length >= 3) {
@@ -625,6 +663,7 @@ export function LayoutEditor() {
       else if (e.key === 'r') setTool('rect');
       else if (e.key === 'c') setTool('crop');
       else if (e.key === 'h') setTool('pan');
+      else if (e.key === 'a') setTool('realign');
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
@@ -673,6 +712,7 @@ export function LayoutEditor() {
                 ['rect', 'Rect', 'R'],
                 ['crop', 'Crop', 'C'],
                 ['pan', 'Pan', 'H'],
+                ['realign', 'Re-align', 'A'],
               ] as [Tool, string, string][]
             ).map(([t, label, key]) => (
               <button
@@ -816,6 +856,59 @@ export function LayoutEditor() {
                   stroke="#3b82f6"
                   strokeWidth={1.5 / view.zoom}
                 />
+              )}
+
+              {/* re-align picks: odd markers are "is", even are "should be",
+                  joined by an arrow so the intended move is obvious. */}
+              {align.length > 0 && (
+                <g>
+                  {align.map((pt, i) => (
+                    <g key={i}>
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={7 / view.zoom}
+                        fill={i % 2 === 0 ? '#ef4444' : '#22c55e'}
+                        stroke="#fff"
+                        strokeWidth={2 / view.zoom}
+                      />
+                      <text
+                        x={pt.x + 11 / view.zoom}
+                        y={pt.y - 9 / view.zoom}
+                        fontSize={13 / view.zoom}
+                        fontWeight={700}
+                        fill="#111"
+                        stroke="#fff"
+                        strokeWidth={3 / view.zoom}
+                        style={{ paintOrder: 'stroke', pointerEvents: 'none' }}
+                      >
+                        {i % 2 === 0 ? `from ${i / 2 + 1}` : `to ${(i - 1) / 2 + 1}`}
+                      </text>
+                    </g>
+                  ))}
+                  {align.length >= 2 && (
+                    <line
+                      x1={align[0]!.x}
+                      y1={align[0]!.y}
+                      x2={align[1]!.x}
+                      y2={align[1]!.y}
+                      stroke="#111"
+                      strokeWidth={2 / view.zoom}
+                      strokeDasharray={`${6 / view.zoom} ${4 / view.zoom}`}
+                    />
+                  )}
+                  {align.length === 4 && (
+                    <line
+                      x1={align[2]!.x}
+                      y1={align[2]!.y}
+                      x2={align[3]!.x}
+                      y2={align[3]!.y}
+                      stroke="#111"
+                      strokeWidth={2 / view.zoom}
+                      strokeDasharray={`${6 / view.zoom} ${4 / view.zoom}`}
+                    />
+                  )}
+                </g>
               )}
 
               {/* crop rectangle */}

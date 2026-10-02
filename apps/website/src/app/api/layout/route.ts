@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { CORS, denyPublish, readStore, storePath, writeStore } from '../../../lib/content-store';
+import { CORS, denyPublish, storageFailure } from '../../../lib/content-store';
+import { getLayout, listLiveLayouts, putLayout } from '../../../lib/db';
 
 /**
- * Shared layout store, keyed by project slug, so the admin can publish a plot
- * layout per project that the public site renders. Persisted under DATA_DIR —
- * see lib/content-store. Replaced by NestJS + Postgres + S3 later.
+ * Published plot layouts, one per project slug, so the admin can publish a map
+ * that the public site renders. Stored in Postgres (site.layouts) — see lib/db.
  *
  *   GET  /api/layout                -> { projects: string[] }   (slugs with a live map)
  *   GET  /api/layout?project=<slug> -> { image, plots, updatedAt }
@@ -13,30 +13,22 @@ import { CORS, denyPublish, readStore, storePath, writeStore } from '../../../li
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const FILE = storePath('spb-published-layouts.json');
-
-type Layout = { image: unknown; plots: unknown[]; updatedAt: string };
-type Store = Record<string, Layout>;
-
-const read = (): Promise<Store> => readStore<Store>(FILE, {});
+const EMPTY = { image: null, plots: [], updatedAt: null };
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
 export async function GET(req: Request) {
-  const store = await read();
   const slug = new URL(req.url).searchParams.get('project');
-
-  if (slug) {
-    const layout = store[slug];
-    return NextResponse.json(layout ?? { image: null, plots: [], updatedAt: null }, { headers: CORS });
+  try {
+    if (slug) {
+      return NextResponse.json((await getLayout(slug)) ?? EMPTY, { headers: CORS });
+    }
+    return NextResponse.json({ projects: await listLiveLayouts() }, { headers: CORS });
+  } catch (err) {
+    return storageFailure(err, slug ? EMPTY : { projects: [] });
   }
-
-  const projects = Object.keys(store).filter(
-    (k) => store[k]?.image && Array.isArray(store[k]?.plots) && store[k]!.plots.length > 0,
-  );
-  return NextResponse.json({ projects }, { headers: CORS });
 }
 
 export async function POST(req: Request) {
@@ -44,21 +36,21 @@ export async function POST(req: Request) {
   if (denied) {
     return NextResponse.json({ ok: false, error: denied.error }, { status: denied.status, headers: CORS });
   }
+  let body: { projectId?: unknown; image?: unknown; plots?: unknown };
   try {
-    const body = await req.json();
-    const projectId: string | undefined = body.projectId;
-    if (!projectId) {
-      return NextResponse.json({ ok: false, error: 'projectId is required' }, { status: 400, headers: CORS });
-    }
-    const store = await read();
-    store[projectId] = {
-      image: body.image ?? null,
-      plots: Array.isArray(body.plots) ? body.plots : [],
-      updatedAt: new Date().toISOString(),
-    };
-    await writeStore(FILE, store);
-    return NextResponse.json({ ok: true, project: projectId, count: store[projectId]!.plots.length }, { headers: CORS });
+    body = (await req.json()) as typeof body;
   } catch {
-    return NextResponse.json({ ok: false, error: 'Failed to save layout' }, { status: 500, headers: CORS });
+    return NextResponse.json({ ok: false, error: 'Malformed request body.' }, { status: 400, headers: CORS });
+  }
+  const projectId = typeof body.projectId === 'string' ? body.projectId.trim() : '';
+  if (!projectId || projectId.length > 120) {
+    return NextResponse.json({ ok: false, error: 'projectId is required' }, { status: 400, headers: CORS });
+  }
+  const plots = Array.isArray(body.plots) ? body.plots : [];
+  try {
+    await putLayout(projectId, body.image ?? null, plots);
+    return NextResponse.json({ ok: true, project: projectId, count: plots.length }, { headers: CORS });
+  } catch (err) {
+    return storageFailure(err);
   }
 }

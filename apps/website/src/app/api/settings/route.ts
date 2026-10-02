@@ -6,20 +6,19 @@ import {
   isSafeMediaUrl,
   type SiteSettings,
 } from '@spb/types';
-import { CORS, denyPublish, readStore, storePath, writeStore } from '../../../lib/content-store';
+import { CORS, denyPublish, storageFailure } from '../../../lib/content-store';
+import { getContent, putContent } from '../../../lib/db';
 
 /**
  * Site settings published from the admin's Settings page — analytics IDs,
- * search-console verification, SEO overrides and the hero background. Same
- * store pattern as /api/layout and /api/gallery — see lib/content-store.
+ * search-console verification, SEO overrides and the hero background. Stored
+ * in Postgres (site.content) — see lib/db.
  *
  *   GET  /api/settings -> SiteSettings
  *   POST /api/settings { ...settings } -> { ok }
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const FILE = storePath('spb-site-settings.json');
 
 const str = (v: unknown, max = 300): string =>
   typeof v === 'string' ? v.trim().slice(0, max) : '';
@@ -29,8 +28,8 @@ const str = (v: unknown, max = 300): string =>
 const media = (v: unknown): string => (isSafeMediaUrl(v) ? v.trim() : '');
 
 async function read(): Promise<SiteSettings> {
-  const parsed = await readStore<Partial<SiteSettings>>(FILE, {});
-  return { ...EMPTY_SITE_SETTINGS, ...parsed };
+  const row = await getContent<Partial<SiteSettings>>('settings');
+  return { ...EMPTY_SITE_SETTINGS, ...(row?.value ?? {}) };
 }
 
 export async function OPTIONS() {
@@ -38,7 +37,11 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return NextResponse.json(await read(), { headers: CORS });
+  try {
+    return NextResponse.json(await read(), { headers: CORS });
+  } catch (err) {
+    return storageFailure(err, EMPTY_SITE_SETTINGS);
+  }
 }
 
 export async function POST(req: Request) {
@@ -65,12 +68,15 @@ export async function POST(req: Request) {
       heroOverlay: clampHeroOverlay(b.heroOverlay),
       updatedAt: new Date().toISOString(),
     };
-    await writeStore(FILE, next);
+    await putContent('settings', next);
     return NextResponse.json({ ok: true, settings: next }, { headers: CORS });
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: 'Failed to save settings' },
-      { status: 500, headers: CORS },
-    );
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      return NextResponse.json(
+        { ok: false, error: 'Malformed request body.' },
+        { status: 400, headers: CORS },
+      );
+    }
+    return storageFailure(err);
   }
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Snapshot the two things a redeploy cannot rebuild:
-#   1. the published content volume (gallery/marketing/settings/layout JSON)
-#   2. the postgres database
+#   1. the postgres database — ALL published content, shared admin state and
+#      contact-form enquiries (schema `site`), plus the API's tables
+#   2. the legacy content volume (the pre-database JSON store, kept read-only)
 # Written to $BACKUP_DIR with a sha256 alongside each artifact.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
@@ -36,7 +37,8 @@ step "Backing up postgres"
 DB_OUT="$BACKUP_DIR/db_${STAMP}_${TAG}.sql.gz"
 if COMPOSE ps --status running postgres 2>/dev/null | grep -q postgres; then
   if COMPOSE exec -T -e PGPASSWORD="${DB_PASSWORD:-}" postgres \
-       pg_dump -U "${DB_USERNAME:-spb}" -d "${DB_NAME:-spbuilders}" 2>/dev/null | gzip > "$DB_OUT"; then
+       pg_dump --clean --if-exists -U "${DB_USERNAME:-spb}" -d "${DB_NAME:-spbuilders}" 2>/dev/null \
+       | gzip > "$DB_OUT"; then
     # A dump of a failed connection is a valid empty gzip — check it has content.
     if [ "$(gzip -dc "$DB_OUT" | head -c 1 | wc -c)" -eq 0 ]; then
       err "pg_dump produced an empty file — check DB_PASSWORD. Removing."
@@ -49,7 +51,7 @@ if COMPOSE ps --status running postgres 2>/dev/null | grep -q postgres; then
     err "pg_dump FAILED"; rm -f "$DB_OUT"
   fi
 else
-  warn "postgres is not running — skipping the database dump."
+  err "postgres is not running — the database (all site content and enquiries) was NOT backed up."
 fi
 
 step "Pruning to the newest $RETAIN_LOCAL_MAX of each kind"

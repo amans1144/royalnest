@@ -1,9 +1,9 @@
 # ============================================================================
 #  RoyalNest — production stack (single VPS).
 #
-#      host nginx :443  ──►  proxy (Caddy) ──┬─► website:3000 ──► api:4000
-#                            127.0.0.1:8090  └─► admin:3005          │
-#                                                            postgres / redis
+#      host nginx :443  ──►  proxy (Caddy) ──┬─► website:3000 ──► postgres
+#                            127.0.0.1:8090  └─► admin:3005          ▲
+#                                                     api:4000 ──────┘ (+ redis)
 #
 #  Only the proxy binds a host port, and by default it binds to 127.0.0.1 —
 #  so nothing in this stack is reachable from the internet except through the
@@ -43,7 +43,7 @@ services:
       - caddy_config:/config
     networks: [royalnest_net]
 
-  # ── Public website. Owns the published-content store. ─────────────────────
+  # ── Public website. Owns the content store (Postgres, schema `site`). ─────
   website:
     build:
       context: .
@@ -60,11 +60,15 @@ services:
     env_file: .env.production
     environment:
       NODE_ENV: production
-      # Published gallery/marketing/settings/layout JSON. A named volume, so a
-      # redeploy or `down` never takes the site's content with it.
+      # Published content, shared admin state and enquiries all live in
+      # Postgres (DATABASE_URL). DATA_DIR is only read once, on the first start
+      # against an empty database, to import the old JSON-file store; the
+      # volume is kept mounted so that import can find it and as a rollback.
       DATA_DIR: /var/lib/spbuilders
     volumes:
-      - content:/var/lib/spbuilders
+      - content:/var/lib/spbuilders:ro
+    depends_on:
+      postgres: { condition: service_healthy }
     expose: ['3000']
     networks: [royalnest_net]
 
@@ -89,8 +93,9 @@ services:
 
   # ── API. Internal only — no published port, ever. ─────────────────────────
   #  Still a scaffold (health endpoints only) and nothing on the site calls it.
-  #  Start the stack with `--scale api=0` (or comment this out with postgres and
-  #  redis) to save ~400 MB of RAM on a 1 vCPU box until the API has real modules.
+  #  Start the stack with `--scale api=0 --scale redis=0` to save ~400 MB of RAM
+  #  on a 1 vCPU box until the API has real modules. Postgres must stay: the
+  #  website keeps all of its content there.
   api:
     build:
       context: .
@@ -137,8 +142,8 @@ services:
     networks: [royalnest_net]
 
 volumes:
-  content:        # published site content — the thing you cannot rebuild
-  pgdata:
+  content:        # the pre-database JSON store; read-only, kept for import/rollback
+  pgdata:         # ALL site content, admin state and enquiries — back this up
   redisdata:
   caddy_data:
   caddy_config:

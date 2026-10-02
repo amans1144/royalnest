@@ -123,9 +123,30 @@ export function PlotMap() {
   }, [load]);
 
   const isLive = !!(published && published.image && published.plots.length > 0);
-  const plots: ViewPlot[] = isLive ? published!.plots : demo;
   const viewW = isLive ? published!.image!.width : DEMO_W;
   const viewH = isLive ? published!.image!.height : DEMO_H;
+
+  /**
+   * Published polygons are fractions of the site-plan image (0–1), so the map
+   * survives the plan being re-exported at a different resolution. Scale them
+   * into the current image's pixel space for rendering.
+   *
+   * Layouts published before that change carry absolute pixels; they are
+   * detected and passed through, so an existing live map keeps working until
+   * the admin next publishes.
+   */
+  const plots: ViewPlot[] = useMemo(() => {
+    if (!isLive) return demo;
+    const raw = published!.plots;
+    const normalized =
+      raw.length > 0 &&
+      raw.every((p) => p.points.every((pt) => Math.abs(pt.x) <= 1.5 && Math.abs(pt.y) <= 1.5));
+    if (!normalized) return raw;
+    return raw.map((p) => ({
+      ...p,
+      points: p.points.map((pt) => ({ x: pt.x * viewW, y: pt.y * viewH })),
+    }));
+  }, [isLive, published, demo, viewW, viewH]);
 
   const counts = useMemo(() => {
     const c: Partial<Record<PlotStatus, number>> = {};

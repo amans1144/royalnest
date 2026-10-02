@@ -11,10 +11,11 @@ Internet
                  │  127.0.0.1:8090
                  ▼
           proxy (Caddy, docker)      ← routes on the Host header
-                 ├──► website:3000   royalnestrealty.in, www.
-                 └──► admin:3005     admin.royalnestrealty.in
-                          │
-                       api:4000 ──► postgres / redis   (internal only)
+                 ├──► website:3000   royalnestrealty.in, www. ──► postgres
+                 └──► admin:3005     admin.royalnestrealty.in       ▲
+                                                                    │
+                       api:4000 ──► redis   ────────────────────────┘
+                                         (all internal only)
 ```
 
 Only the proxy binds a host port, and only on `127.0.0.1`. The website, admin,
@@ -110,14 +111,12 @@ cannot know:
 
 ## Contact-form enquiries
 
-When someone submits the Quick Enquiry form, `POST /api/lead` **appends the
-enquiry to `$DATA_DIR/spb-leads.jsonl` first, then tries to email it.** The
+When someone submits the Quick Enquiry form, `POST /api/lead` **saves the
+enquiry to Postgres (`site.enquiries`) first, then tries to email it.** The
 visitor is told it succeeded as soon as it is stored, so a broken mail relay
-costs you notification speed, never the lead.
-
-`DATA_DIR` is set by compose to `/var/lib/spbuilders` inside the website
-container, backed by the `royalnest_content` volume — the same volume as the
-published content, so `6) Backup / Restore` already covers the lead log.
+costs you notification speed, never the lead. Each row records whether its
+email went out (`mailed`). The admin console's **Enquiries** page lists them,
+and `6) Backup / Restore` covers them with the rest of the database.
 
 To turn the notification email on, set in `.env.production`:
 
@@ -138,10 +137,9 @@ Reading what has come in, and why mail failed if it did:
 
 ```bash
 cd /root/royalnest
-docker compose -f docker-compose.prod.yml exec website \
-  tail -n 20 /var/lib/spbuilders/spb-leads.jsonl        # latest enquiries
-docker compose -f docker-compose.prod.yml exec website \
-  wc -l /var/lib/spbuilders/spb-leads.jsonl             # total received
+PSQL='docker compose --env-file .env.production -f docker-compose.prod.yml exec postgres psql -U spb -d spbuilders'
+$PSQL -c "SELECT received_at, name, phone, interest, mailed FROM site.enquiries ORDER BY received_at DESC LIMIT 20"
+$PSQL -c "SELECT count(*), count(*) FILTER (WHERE mailed IS FALSE) AS not_mailed FROM site.enquiries"
 docker compose -f docker-compose.prod.yml logs website | grep '\[lead\]'
 ```
 
@@ -163,8 +161,8 @@ bash deploy.sh    # 2) Deploy — takes a pre-deploy backup, rebuilds, restarts,
 ```
 
 To rebuild only one app, `3) Rebuild one app`. Published content is untouched
-by a redeploy: it lives in the `royalnest_content` Docker volume, not in the
-image.
+by a redeploy: it lives in Postgres, on the `royalnest_pgdata` volume, not in
+the image.
 
 **A restart is not enough for `NEXT_PUBLIC_*` changes.** Those are compiled
 into the browser bundle, so they need `2` or `3` (a rebuild), never `5`.
@@ -172,7 +170,8 @@ into the browser bundle, so they need `2` or `3` (a rebuild), never `5`.
 ## Backups
 
 `6) Backup / Restore` snapshots the two things a redeploy cannot rebuild: the
-published content volume and the Postgres database. `6 → d` installs a daily
+Postgres database — which holds all published content, the admin's shared
+data and every enquiry — and the legacy JSON content volume. `6 → d` installs a daily
 cron. Backups land in `/var/backups/royalnest`, newest 14 kept.
 
 They are on the same disk as the thing they protect, so copy them off the box:
@@ -251,8 +250,38 @@ docker compose --env-file .env.production -f docker-compose.prod.yml \
   up -d --scale api=0 proxy website admin
 ```
 
-That saves roughly 400 MB of RAM. The website's content store is plain JSON on
-a volume and does not need Postgres.
+(Redis is only used by the API, so it can go too: `--scale api=0 --scale
+redis=0`.) **Postgres cannot be left out** — the website stores everything in
+it. That saves roughly 400 MB of RAM.
+
+## Where the site's data lives
+
+All of it is in Postgres, in the `site` schema, which the website creates on
+its first start — there is no migrate step to run:
+
+| Table | Holds |
+| --- | --- |
+| `site.content` | Published settings, gallery and marketing material |
+| `site.layouts` | Published plot maps, one row per project |
+| `site.admin_state` | The admin console's shared data — projects, leads, bookings, traced maps, activity — versioned so two admins can't silently overwrite each other |
+| `site.enquiries` | Every contact-form submission |
+| `site.migrations` | One-shot steps already applied |
+
+The API's Prisma tables live in `public`. Keeping the two apart means
+`prisma db push` (`7 → b`) can never drop the website's tables.
+
+**Upgrading from the JSON-file store** needs nothing extra. On its first start
+against an empty database the website imports every file it finds in the
+`royalnest_content` volume — published content, layouts, admin state and
+`spb-leads.jsonl` — and logs `[db] imported legacy JSON …`. It runs once
+(recorded in `site.migrations`), never overwrites a row that already exists,
+and leaves the files untouched; the volume stays mounted read-only as the
+rollback. To confirm:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec postgres \
+  psql -U spb -d spbuilders -c "SELECT name, detail, applied_at FROM site.migrations"
+```
 
 ## Troubleshooting
 
@@ -278,8 +307,9 @@ before this carries real customer data:
    `localStorage`. nginx Basic Auth is the real gate.
 2. **The publish token is a `NEXT_PUBLIC_` value**, so anyone who can load the
    admin bundle can read it. Basic Auth is what stops the bundle being fetched.
-3. **Uploads are data URIs inside JSON.** Fine for a brochure and a few dozen
-   photos; it will not scale to hundreds. The S3 config in `.env.prod.example`
+3. **Uploads are data URIs stored in the database.** Fine for a brochure and a
+   few dozen photos; it will not scale to hundreds. The S3 config in `.env.prod.example`
    is the intended replacement.
-4. **Single instance per app.** The JSON store has no locking — never run two
-   website containers against the same content volume.
+4. **Single instance per app.** The store itself is now safe for concurrent
+   writers, but the enquiry rate limiter is per-process memory, so two website
+   containers would each allow their own quota.

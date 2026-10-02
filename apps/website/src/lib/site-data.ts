@@ -16,9 +16,9 @@ export const BRAND = {
    * in and every button, link and JSON-LD telephone comes back at once — no
    * component needs touching.
    */
-  phone: '',
-  phoneHref: '',
-  whatsapp: '',
+  phone: '+91 78872 81010',
+  phoneHref: 'tel:+917887281010',
+  whatsapp: 'https://wa.me/917887281010',
   email: 'info@royalnestrealty.in',
   address: 'D1-184, Ansal Sushant Golf City, Lucknow',
   hours: 'Mon–Sat, 10:00 AM – 7:00 PM',

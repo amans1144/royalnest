@@ -50,14 +50,14 @@ export default function LoginPage() {
             <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-white/10 backdrop-blur">
               <Image
                 src="/royal-nest-logo.png"
-                alt="RoyalNest Realty"
+                alt="Royalnest Realty"
                 width={36}
                 height={36}
                 className="h-9 w-9 object-contain"
                 priority
               />
             </span>
-            <span className="text-xl font-semibold">RoyalNest Realty</span>
+            <span className="text-xl font-semibold">Royalnest Realty</span>
           </div>
           <div>
             <h1 className="max-w-md text-4xl font-semibold leading-tight">
@@ -76,7 +76,7 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-          <p className="text-sm text-white/50">© {new Date().getFullYear()} RoyalNest Realty</p>
+          <p className="text-sm text-white/50">© {new Date().getFullYear()} Royalnest Realty</p>
         </div>
       </div>
 
@@ -90,13 +90,13 @@ export default function LoginPage() {
             <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl bg-navy">
               <Image
                 src="/royal-nest-logo.png"
-                alt="RoyalNest Realty"
+                alt="Royalnest Realty"
                 width={32}
                 height={32}
                 className="h-8 w-8 object-contain"
               />
             </span>
-            <span className="text-xl font-semibold">RoyalNest Realty</span>
+            <span className="text-xl font-semibold">Royalnest Realty</span>
           </div>
 
           <h2 className="text-2xl font-semibold">Welcome back</h2>

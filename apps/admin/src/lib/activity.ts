@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getSession } from './auth';
+import { getShared, setShared } from './shared-state';
 
 /**
  * Audit trail for the admin console — who did what, to which record, and when.
  *
  * Every create / update / delete flows through `logActivity`, which stamps the
  * signed-in user and an ISO timestamp. Entries are append-only from the UI's
- * point of view (newest first, capped at MAX) and persist in localStorage until
+ * point of view (newest first, capped at MAX) and are shared by every admin via
+ * the website (see lib/shared-state), until
  * the NestJS API provides a server-side audit table.
  */
 
@@ -70,13 +72,8 @@ const CHANNEL = 'rnr:activity';
 
 export function readActivity(): ActivityEntry[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(ACTIVITY_KEY);
-    const list = raw ? (JSON.parse(raw) as ActivityEntry[]) : [];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
+  const list = getShared<ActivityEntry[] | null>(ACTIVITY_KEY, null);
+  return Array.isArray(list) ? list : [];
 }
 
 export type LogInput = Omit<
@@ -98,7 +95,7 @@ export function logActivity(input: LogInput): ActivityEntry | null {
   };
   try {
     const next = [entry, ...readActivity()].slice(0, MAX);
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(next));
+    setShared(ACTIVITY_KEY, next);
     window.dispatchEvent(new CustomEvent(CHANNEL));
   } catch {
     /* storage full — dropping an audit line must never break the action */
@@ -108,7 +105,7 @@ export function logActivity(input: LogInput): ActivityEntry | null {
 
 export function clearActivity(): void {
   try {
-    localStorage.removeItem(ACTIVITY_KEY);
+    setShared(ACTIVITY_KEY, []);
     window.dispatchEvent(new CustomEvent(CHANNEL));
   } catch {
     /* ignore */

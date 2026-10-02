@@ -3,11 +3,13 @@
 import type { GalleryImage } from '@spb/types';
 import { WEBSITE_URL } from './layouts';
 import { publishError, publishHeaders } from './publish';
+import { getShared, setShared, sharedError } from './shared-state';
 
 /**
  * Gallery store for the Media Library. Images are held as compressed data URIs
- * in localStorage (the admin's working copy) and pushed to the public site's
- * /api/gallery endpoint on publish. Swapped for S3 uploads when the API lands.
+ * on the website (shared by every admin — see lib/shared-state) and pushed to
+ * the public site's /api/gallery endpoint on publish. Swapped for S3 uploads
+ * when the API lands.
  */
 
 export const GALLERY_KEY = 'rnr_gallery';
@@ -20,25 +22,16 @@ export const JPEG_QUALITY = 0.82;
 
 export function readGallery(): GalleryImage[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(GALLERY_KEY);
-    const list = raw ? (JSON.parse(raw) as GalleryImage[]) : [];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
+  const list = getShared<GalleryImage[] | null>(GALLERY_KEY, null);
+  return Array.isArray(list) ? list : [];
 }
 
 export function writeGallery(images: GalleryImage[]): { ok: boolean; error?: string } {
-  try {
-    localStorage.setItem(GALLERY_KEY, JSON.stringify(images));
-    return { ok: true };
-  } catch {
-    return {
-      ok: false,
-      error: 'Browser storage is full. Remove some images or publish and clear older ones.',
-    };
-  }
+  setShared(GALLERY_KEY, images);
+  // The save is in flight; report any error left by the previous one rather
+  // than claiming success the browser-quota version used to have to guess at.
+  const err = sharedError(GALLERY_KEY);
+  return err ? { ok: false, error: err } : { ok: true };
 }
 
 /** Rough byte size of the stored gallery, for the quota meter. */

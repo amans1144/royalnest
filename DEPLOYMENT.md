@@ -21,12 +21,12 @@ What actually gets deployed today:
 | `apps/admin` | 3005 | The admin console |
 
 `apps/api` (NestJS) is still a scaffold — only a health endpoint — and nothing on
-the site calls it, so **Postgres, Redis and MinIO are not needed yet**. Skip them
-until the API has real modules. That keeps a 1 vCPU box comfortable.
-
-Published content (gallery, marketing material, site settings, plot layouts) is
-stored as JSON files under `DATA_DIR`, written atomically. Uploaded images live
-inside those files as data URIs.
+the site calls it, so **Redis and MinIO are not needed yet**. **Postgres is**:
+the website stores all published content (gallery, marketing material, site
+settings, plot layouts), the admin console's shared data and every contact-form
+enquiry in it, in a `site` schema it creates on first start. Uploaded images
+are stored there as data URIs. Install PostgreSQL 14+ locally and create a
+database and user for it before the first start.
 
 Assumes two DNS records pointing at your VPS IP:
 
@@ -148,13 +148,15 @@ Create `/var/www/spbuilders/.env.production`:
 # ── Website (port 3000) ──
 NODE_ENV=production
 NEXT_PUBLIC_SITE_URL=https://royalnestrealty.in
+DATABASE_URL=postgresql://spb:<db password>@localhost:5432/spbuilders
+# Only read once, to import a pre-database JSON store if one exists.
 DATA_DIR=/var/lib/spbuilders
 PUBLISH_TOKEN=<the openssl output>
 ADMIN_ORIGIN=https://admin.royalnestrealty.in
 
 # ── Contact-form enquiries ──
 # Without these the form still works and every enquiry is recorded to
-# $DATA_DIR/spb-leads.jsonl, but nobody is emailed about it.
+# the database (site.enquiries), but nobody is emailed about it.
 LEAD_INBOX=info@royalnestrealty.in
 SMTP_HOST=smtp.hostinger.com
 SMTP_PORT=465
@@ -178,15 +180,14 @@ one and you must rebuild:
 - `NEXT_PUBLIC_WEBSITE_URL` / `NEXT_PUBLIC_PUBLISH_TOKEN` — where the admin
   publishes to, and the token it sends
 
-`DATA_DIR`, `PUBLISH_TOKEN`, `ADMIN_ORIGIN` and all the `SMTP_*` / `LEAD_INBOX`
+`DATABASE_URL`, `PUBLISH_TOKEN`, `ADMIN_ORIGIN` and all the `SMTP_*` / `LEAD_INBOX`
 values are read at runtime by the website process, so those only need a restart.
 
 ### Checking enquiries
 
 See **[`deploy/DEPLOY.md`](deploy/DEPLOY.md) → Contact-form enquiries**. The
-commands here would be wrong for the Docker stack: the lead log lives in the
-`content` volume, not on the host filesystem, and the logs come from
-`docker compose`, not `journalctl`.
+commands there use `docker compose exec postgres psql`; on this setup run the
+same SQL with your local `psql`, and read logs with `journalctl`.
 
 ## 6. Install and build
 
@@ -393,7 +394,7 @@ Pull a copy off the box periodically — a backup on the same disk is not a back
 | Publish says the tokens don't match | `PUBLISH_TOKEN` ≠ `NEXT_PUBLIC_PUBLISH_TOKEN`, or the admin wasn't rebuilt after changing it |
 | Publish says publishing is disabled | `PUBLISH_TOKEN` is unset on the website — it fails closed by design |
 | `413` on publish | `client_max_body_size` too low in nginx |
-| Published content vanished after reboot | `DATA_DIR` unset, so it fell back to `/tmp` |
+| API routes return 503 "could not reach its database" | `DATABASE_URL` wrong or Postgres down — `sudo journalctl -u spb-website -n 50` shows the `[db]` error |
 | Canonical URLs point at localhost | `NEXT_PUBLIC_SITE_URL` wasn't set at **build** time |
 | Site 502s | `sudo journalctl -u spb-website -n 50` |
 
@@ -408,8 +409,9 @@ Pull a copy off the box periodically — a backup on the same disk is not a back
    who can load the admin bundle. It stops the open internet writing to the
    site; Basic Auth is what stops the bundle being fetched. Together they are
    reasonable for a single-operator site, not for multi-user access.
-3. **Uploads are stored as data URIs inside JSON.** Fine for a brochure and a few
+3. **Uploads are stored as data URIs in the database.** Fine for a brochure and a few
    dozen photos; it will not scale to hundreds. The S3 path in `.env.example`
    is the intended replacement.
-4. **Single instance per app.** The JSON store has no locking, so don't run two
-   copies of the website against one `DATA_DIR`.
+4. **Single instance per app.** The database handles concurrent writers, but
+   the enquiry rate limiter is in-process memory, so each copy of the website
+   would enforce its own limit.

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RoyalNest Realty — Admin Console',
+  title: 'Royalnest Realty — Admin Console',
   description: 'Projects, interactive plot editor, bookings, CRM, and reports.',
   robots: { index: false, follow: false },
 };

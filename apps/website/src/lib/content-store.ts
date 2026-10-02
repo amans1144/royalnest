@@ -1,60 +1,11 @@
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import { NextResponse } from 'next/server';
+import { DbUnavailable } from './db';
 
 /**
- * Server-side store shared by the publish endpoints (/api/gallery,
- * /api/marketing, /api/settings, /api/layout).
- *
- * In development this stays in the OS temp dir, outside the project, so the
- * dev-server file watcher doesn't reload on every publish. In production that
- * is the wrong place — systemd-tmpfiles clears /tmp, and on some images it is
- * a tmpfs that empties on reboot — so DATA_DIR must point at a directory that
- * survives restarts. Everything published from the admin lives there.
+ * Shared plumbing for the publish endpoints (/api/gallery, /api/marketing,
+ * /api/settings, /api/layout, /api/admin/state, /api/lead): who may write, and
+ * which origins may call. Storage itself lives in lib/db — Postgres, not files.
  */
-const DATA_DIR = process.env.DATA_DIR?.trim() || os.tmpdir();
-
-export const storePath = (fileName: string): string => path.join(DATA_DIR, fileName);
-
-export async function readStore<T>(file: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await fs.readFile(file, 'utf8')) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Write via a temp file and rename. rename(2) is atomic on the same
- * filesystem, so a crash or a power cut mid-publish leaves the previous
- * content intact instead of a half-written file the site can't parse.
- */
-export async function writeStore(file: string, data: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  try {
-    await fs.writeFile(tmp, JSON.stringify(data), 'utf8');
-    await fs.rename(tmp, file);
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {});
-    throw err;
-  }
-}
-
-/**
- * Append one JSON record as a line (JSONL).
- *
- * Deliberately not read-modify-write like writeStore: enquiries arrive from the
- * public internet and two overlapping submissions would make a read/push/write
- * pair lose one of them. A single O_APPEND write of a line shorter than
- * PIPE_BUF is not interleaved, so concurrent submissions can only ever
- * interleave whole lines. The file is also append-only, which is what you want
- * for a lead log — nothing already captured is ever rewritten.
- */
-export async function appendStore(file: string, record: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.appendFile(file, JSON.stringify(record) + '\n', 'utf8');
-}
 
 /* ── Publish authorisation ────────────────────────────────────────────────
    These endpoints rewrite what the public site shows, so on the open internet
@@ -90,12 +41,58 @@ export function denyPublish(req: Request): PublishDenial | null {
   return tokensMatch(TOKEN, sent) ? null : { status: 401, error: 'Invalid or missing publish token.' };
 }
 
+/**
+ * Guard for reading private data back out (enquiries).
+ *
+ * Same token as publishing, but this is a READ and the stakes are different:
+ * the other GET endpoints are deliberately public because they serve the
+ * content the site already displays, whereas enquiries are customers' names,
+ * phone numbers and email addresses. So this fails closed in production with
+ * no token — an unset secret must never mean "anyone may download the leads".
+ */
+export function denyAdminRead(req: Request): PublishDenial | null {
+  if (!TOKEN) {
+    return IS_PROD
+      ? {
+          status: 503,
+          error:
+            'PUBLISH_TOKEN is not set on the website, so enquiries cannot be read remotely. Set it and restart.',
+        }
+      : null; // local development stays frictionless
+  }
+  const sent = req.headers.get('x-publish-token')?.trim() ?? '';
+  return tokensMatch(TOKEN, sent)
+    ? null
+    : { status: 401, error: 'Invalid or missing publish token.' };
+}
+
 /** Browsers only need to reach these from the admin app. */
 const ALLOWED_ORIGIN = process.env.ADMIN_ORIGIN?.trim() || '*';
 
 export const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  // PUT is required by /api/admin/state. Without it the browser's preflight
+  // refuses every shared-state write while GETs keep succeeding — which looks
+  // exactly like "my changes save but nobody else sees them".
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, x-publish-token',
   ...(ALLOWED_ORIGIN === '*' ? {} : { Vary: 'Origin' }),
 };
+
+/**
+ * The response for a storage failure.
+ *
+ * `fallback` is the empty shape the endpoint normally returns, so the public
+ * site's hooks — which only check for the fields they render — keep their
+ * built-in content instead of choking on an error object. 503 rather than
+ * 500: the request was fine, the database was not there to take it.
+ */
+export function storageFailure(err: unknown, fallback: object = {}) {
+  const error =
+    err instanceof DbUnavailable ? err.message : 'Unexpected storage error. Check the website logs.';
+  if (!(err instanceof DbUnavailable)) console.error('[store]', err);
+  return NextResponse.json(
+    { ...fallback, ok: false, error },
+    { status: 503, headers: { ...CORS, 'Cache-Control': 'no-store' } },
+  );
+}

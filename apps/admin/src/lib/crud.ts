@@ -1,15 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { diffFields, logActivity, type ActivityEntity } from './activity';
+import { loadState, saveState } from './remote-store';
+import { primeShared } from './shared-state';
 
 /**
- * A localStorage-backed collection with a React hook. Seeded from mock data on
- * first load; all create/update/delete operations persist across reloads.
- * (Standalone stand-in until the NestJS API + Postgres are wired in.)
+ * A SERVER-backed collection with a React hook.
+ *
+ * This used to be localStorage, which meant each browser held its own private
+ * copy: a project created on one laptop was invisible on every other, and
+ * clearing site data destroyed it. The list now lives on the website (see
+ * lib/remote-store), so every admin on any machine works on the same records.
+ *
+ * `storageError` is surfaced rather than swallowed — an operator needs to know
+ * when their edits are sitting on one device instead of being shared.
  *
  * Pass `audit` to record every mutation to the activity log:
- *   usePersistentList('rnr_leads', SEED, { entity: 'Lead', label: l => l.name })
+ *   usePersistentList('leads', SEED, { entity: 'Lead', label: l => l.name })
  */
 export interface AuditOptions<T> {
   entity: ActivityEntity;
@@ -26,30 +34,80 @@ export function usePersistentList<T extends { id: string }>(
 ) {
   const [items, setItems] = useState<T[]>(seed);
   const [loaded, setLoaded] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  /** Server version, carried so a save can detect another admin's edit. */
+  const version = useRef(0);
 
-  // Load persisted data on the client (after first paint) to avoid SSR mismatch.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) setItems(JSON.parse(raw) as T[]);
-    } catch {
-      /* ignore corrupt storage */
-    }
-    setLoaded(true);
+    let cancelled = false;
+    (async () => {
+      const got = await loadState<T[]>(key, seed);
+      if (cancelled) return;
+      const list = Array.isArray(got.value) ? got.value : seed;
+      setItems(list);
+      // Synchronous readers (readProjects, live-data) read the mirror.
+      primeShared(key, list);
+      version.current = got.version;
+      setStorageError(got.error);
+      setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // `seed` is a module-level constant in every call site; re-running on a new
+    // array identity would clobber loaded data with the seed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  // Persist whenever items change (but not before the initial load).
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(items));
-    } catch {
-      /* storage full / unavailable */
-    }
-  }, [key, items, loaded]);
+  /**
+   * Push a new list up and keep the version in step.
+   *
+   * Mutations go through here rather than an effect watching `items`: an
+   * effect would also fire for the initial load and write the server's own
+   * value straight back, bumping the version on every page view.
+   */
+  const persist = useCallback(
+    async (next: T[]) => {
+      primeShared(key, next);
+      const res = await saveState(key, next, version.current);
+      if (res.ok) {
+        version.current = res.version;
+        setStorageError(null);
+        return;
+      }
+      if (res.conflict) {
+        // Another admin got there first. Their version is authoritative, so
+        // reload rather than pretending this save succeeded.
+        const fresh = await loadState<T[]>(key, next);
+        const list = Array.isArray(fresh.value) ? fresh.value : next;
+        setItems(list);
+        primeShared(key, list);
+        version.current = fresh.version;
+      }
+      setStorageError(res.error);
+    },
+    [key],
+  );
+
+  /**
+   * Applies a change locally for instant feedback, then saves it.
+   *
+   * The next list is computed by the CALLER from `items`, not inside a setState
+   * updater. StrictMode double-invokes updaters, so saving from inside one
+   * fired two PUTs per edit — the second carrying a now-stale version, which
+   * came back 409 and triggered a pointless reload on every single change.
+   * This is the same trap the audit calls below already avoid.
+   */
+  const commit = useCallback(
+    (next: T[]) => {
+      setItems(next);
+      void persist(next);
+    },
+    [persist],
+  );
 
   const add = (item: T) => {
-    setItems((xs) => [item, ...xs]);
+    commit([item, ...items]);
     if (audit) {
       logActivity({
         action: 'CREATE',
@@ -82,7 +140,7 @@ export function usePersistentList<T extends { id: string }>(
         }
       }
     }
-    setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    commit(items.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   };
 
   const remove = (id: string) => {
@@ -97,19 +155,12 @@ export function usePersistentList<T extends { id: string }>(
         });
       }
     }
-    setItems((xs) => xs.filter((x) => x.id !== id));
+    commit(items.filter((x) => x.id !== id));
   };
 
-  const reset = () => {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      /* ignore */
-    }
-    setItems(seed);
-  };
+  const reset = () => commit(seed);
 
-  return { items, add, update, remove, reset, loaded };
+  return { items, add, update, remove, reset, loaded, storageError };
 }
 
 /** Short unique id with a readable prefix, e.g. genId('prj') -> 'prj-k3f9a2'. */

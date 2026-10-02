@@ -1,6 +1,7 @@
 'use client';
 
 import { adminProjects } from './mock';
+import { getShared } from './shared-state';
 
 /** Shared project model + store helpers, used by the Projects page, the plot
  * editor, and the booking/lead forms so a newly-added project shows everywhere. */
@@ -32,16 +33,17 @@ export const PROJECT_SEED: AdminProject[] = adminProjects.map((p) => ({
   id: slugify(p.name),
 }));
 
-/** Read the current projects from localStorage (falls back to the seed). */
+/**
+ * Read the current projects.
+ *
+ * Reads the shared mirror (see lib/shared-state), which the Shell hydrates from
+ * the website before any screen renders — so this is the same list on every
+ * admin's machine. Still synchronous, so every existing call site is unchanged.
+ */
 export function readProjects(): AdminProject[] {
   if (typeof window === 'undefined') return PROJECT_SEED;
-  try {
-    const raw = localStorage.getItem(PROJECTS_KEY);
-    if (raw) return JSON.parse(raw) as AdminProject[];
-  } catch {
-    /* ignore */
-  }
-  return PROJECT_SEED;
+  const list = getShared<AdminProject[] | null>(PROJECTS_KEY, null);
+  return Array.isArray(list) && list.length > 0 ? list : PROJECT_SEED;
 }
 
 /** {slug, name} options for the plot editor's project picker. */
